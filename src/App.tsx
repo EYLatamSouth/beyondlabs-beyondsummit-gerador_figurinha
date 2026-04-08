@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { Toaster } from '@/components/ui/sonner'
 import { UploadZone } from '@/components/UploadZone'
 import { StampForm } from '@/components/StampForm'
+import { StampCanvas } from '@/components/StampCanvas'
 import { useBackgroundRemoval } from '@/hooks/useBackgroundRemoval'
+import { useStampCanvas } from '@/hooks/useStampCanvas'
 import type { StampData } from '@/types/stamp'
 
 const EMPTY_STAMP: StampData = {
@@ -35,6 +38,7 @@ export default function App() {
   const [stampData, setStampData] = useState<StampData>(EMPTY_STAMP)
   const [msgIndex, setMsgIndex] = useState(0)
   const { status, processedUrl, processFile, reset } = useBackgroundRemoval()
+  const { canvasRef, isComposing, downloadPNG } = useStampCanvas(stampData, processedUrl)
 
   // Auto-process when a file is selected
   useEffect(() => {
@@ -59,8 +63,8 @@ export default function App() {
   }
 
   function handleDownload(): void {
-    // Placeholder — canvas export implemented in Step 7/8
-    console.log('[App] download triggered', stampData)
+    downloadPNG()
+    toast.success('Figurinha baixada com sucesso!')
   }
 
   function handleShare(): void {
@@ -139,26 +143,13 @@ export default function App() {
             </div>
 
             <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 items-start">
-              {/* Preview placeholder (Step 7: StampCanvas) */}
+              {/* StampCanvas — live figurinha preview */}
               <div className="w-full lg:w-[380px] shrink-0">
-                <p className="text-xs font-body font-semibold text-[#9CA3AF] uppercase tracking-wider mb-2">
-                  Preview
-                </p>
-                <div
-                  className="w-full aspect-[3/4] rounded-2xl bg-[#F0FDF4] border-2 border-dashed border-[#7DC48A] flex flex-col items-center justify-center gap-3"
-                >
-                  {processedUrl ? (
-                    <img
-                      src={processedUrl}
-                      alt="Foto com fundo removido"
-                      className="w-full h-full object-contain rounded-2xl"
-                    />
-                  ) : (
-                    <p className="text-sm font-body text-[#9CA3AF] text-center px-6">
-                      Canvas da figurinha será renderizado aqui na Fase 7
-                    </p>
-                  )}
-                </div>
+                <StampCanvas
+                  canvasRef={canvasRef}
+                  isComposing={isComposing}
+                  photoUrl={processedUrl}
+                />
               </div>
 
               {/* Form */}
