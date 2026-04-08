@@ -1,0 +1,63 @@
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-green-dark: #1A5C2A;
+    --color-green-mid: #3D9A52;
+    --color-green-light: #7DC48A;
+    --color-gold: #C9A84C;
+    --color-white: #FFFFFF;
+    --color-gray-light: #F5F5F5;
+    --color-gray-text: #374151;
+    --color-black: #111111;
+
+    --color-purple: #6B3FA0;
+    --color-cyan: #4BBFDB;
+    --color-pink: #E8365D;
+    --color-lime: #8DC63F;
+    --color-yellow: #F5C518;
+
+    --radius: 0.625rem;
+
+    --background: 0 0% 100%;
+    --foreground: 0 0% 7%;
+    --primary: 138 57% 23%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 138 43% 42%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 138 43% 42%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 138 57% 23%;
+    --radius: 0.625rem;
+  }
+
+  * {
+    border-color: hsl(214 32% 91%);
+  }
+
+  body {
+    @apply bg-white text-[#111111] font-body antialiased;
+  }
+
+  h1, h2, h3, h4 {
+    @apply font-display;
+  }
+}
+
+@layer utilities {
+  @keyframes progress {
+    0%   { width: 10%; }
+    50%  { width: 80%; }
+    100% { width: 95%; }
+  }
+}
