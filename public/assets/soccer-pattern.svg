@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
+  <!-- Soccer ball outline for tiling watermark pattern -->
+  <g fill="none" stroke="#1A5C2A" stroke-width="1.2">
+    <!-- Outer circle -->
+    <circle cx="60" cy="60" r="46"/>
+    <!-- Central pentagon -->
+    <polygon points="60,22 85.2,39.5 76.1,67.5 43.9,67.5 34.8,39.5"/>
+    <!-- Top hexagons -->
+    <polygon points="60,5 73,13.5 73,22 60,22 47,22 47,13.5"/>
+    <!-- Top-right hexagon -->
+    <polygon points="85.2,39.5 98,35 105,47 98,59 85.2,67.5 76.1,67.5"/>
+    <!-- Bottom-right hexagon -->
+    <polygon points="76.1,67.5 85.2,80.5 80,95 66,100 52,95 43.9,80.5 43.9,67.5"/>
+    <!-- Bottom-left hexagon -->
+    <polygon points="43.9,67.5 34.8,80.5 22,81 15,67.5 22,54 34.8,39.5 43.9,39.5"/>
+    <!-- Top-left hexagon -->
+    <polygon points="34.8,39.5 22,35 15,23 22,11 35,5 47,13.5 47,22 34.8,39.5"/>
+  </g>
+</svg>

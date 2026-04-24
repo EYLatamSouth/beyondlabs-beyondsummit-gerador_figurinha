@@ -1,0 +1,22 @@
+{
+  "name": "gerador-figurinha-api",
+  "version": "1.0.0",
+  "description": "Azure Functions for Beyond Summit Figurinha Generator",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "start": "func start"
+  },
+  "dependencies": {
+    "@azure/cosmos": "^4.1.1",
+    "@azure/functions": "^4.5.0",
+    "@azure/storage-blob": "^12.31.0"
+  },
+  "devDependencies": {
+    "typescript": "~5.7.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

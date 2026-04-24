@@ -1,6 +1,6 @@
 # DESIGN.md — Beyond Summit Figurinha Generator
 
-> Referências visuais: template da figurinha (`IMG_2263.png`) e slides da identidade visual (`IMG_2271.jpeg`).
+> Referências visuais: template da figurinha (`assets/template-figurinha.webp`). Logos disponíveis em `assets/`.
 
 ---
 
@@ -8,12 +8,22 @@
 
 ### 1.1 Logos
 
-| Logo | Uso | Posição na interface |
-|---|---|---|
-| **Beyond Summit Innovation Cup** ("BS" dourado + troféu) | Identidade do evento — aparece dentro da figurinha | Asset PNG extraído do template |
-| **BeyondLabs** (bússola/globo estilizada) | Logo institucional — aparece na interface do app | Canto superior direito do header |
+Todos os arquivos abaixo estão em `assets/` com **fundo transparente (PNG)**.
 
-> **Atenção:** Não há versões vetoriais disponíveis. Usar os PNGs extraídos das imagens de referência, otimizados para web. Para a interface, o logo BeyondLabs deve ter fundo transparente.
+| Arquivo | Conteúdo | Uso recomendado |
+|---|---|---|
+| `logo-beyondlabs.png` | Logo BeyondLabs em **branco** (texto/ícone branco, fundo transparente) | Header da interface — sobre fundo verde escuro (`#1A5C2A`) |
+| `logo-beyondSummit_fonte_branca.png` | Símbolo BS amarelo + troféu + texto "BEYOND SUMMIT / INNOVATION CUP" em **branco** | ✅ **Canvas da figurinha** (layer overlay) — funciona sobre fundo verde |
+| `logo-beyondSummit_fonte_preta.png` | Símbolo BS amarelo + troféu + texto "BEYOND SUMMIT / INNOVATION CUP" em **preto** | Uso em fundos claros (documentos, prints, etc.) — não usar no canvas |
+| `logo-BS_semfonte.png` | Apenas símbolo BS amarelo + troféu, sem texto | Ícone, favicon, variação compacta |
+| `template-figurinha.webp` | Template completo da figurinha (referência visual) | Referência — extrair `figurinha-bg.png` e `figurinha-overlay.png` daqui |
+
+> **Para o canvas (`composeLayers`):**
+> - Layer 1 — fundo: extrair o fundo verde (`figurinha-bg.png`) do template
+> - Layer 3 — overlay: usar `logo-beyondSummit_fonte_branca.png` (texto branco legível sobre verde)
+>
+> **Para o header da interface:**
+> - Usar `logo-beyondlabs.png` (branco) sobre o fundo verde do header
 
 ---
 

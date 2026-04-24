@@ -1,0 +1,351 @@
+import { useState, useEffect, useRef } from 'react'
+import { Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
+import { Toaster } from '@/components/ui/sonner'
+import { UploadZone } from '@/components/UploadZone'
+import { StampForm } from '@/components/StampForm'
+import { StampCanvas } from '@/components/StampCanvas'
+import { PhotoAdjustEditor } from '@/components/PhotoAdjustEditor'
+import { Header } from '@/components/Header'
+import { DecorativeCorners } from '@/components/DecorativeCorners'
+import { AppBackground } from '@/components/AppBackground'
+import { useBackgroundRemoval } from '@/hooks/useBackgroundRemoval'
+import { useStampCanvas } from '@/hooks/useStampCanvas'
+import { registerParticipant } from '@/lib/analytics'
+import { uploadSticker } from '@/lib/sticker-upload'
+import { getCountryByCode } from '@/lib/countries'
+import type { StampData, PhotoTransform } from '@/types/stamp'
+import { DEFAULT_PHOTO_TRANSFORM } from '@/types/stamp'
+
+type MuralUploadStatus = 'idle' | 'uploading' | 'done' | 'error'
+
+const EMPTY_STAMP: StampData = {
+  name: '',
+  role: '',
+  area: '',
+  email: '',
+  countryCode: '',
+}
+
+const LOADING_MESSAGES = [
+  'Analisando sua foto...',
+  'Removendo o fundo...',
+  'Quase lá...',
+]
+
+function isStampComplete(data: StampData): boolean {
+  return (
+    data.name.trim() !== '' &&
+    data.role.trim() !== '' &&
+    data.area.trim() !== '' &&
+    data.email.trim() !== '' &&
+    data.countryCode !== ''
+  )
+}
+
+export default function Home() {
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [stampData, setStampData] = useState<StampData>(EMPTY_STAMP)
+  const [msgIndex, setMsgIndex] = useState(0)
+  const [photoTransform, setPhotoTransform] = useState<PhotoTransform>(DEFAULT_PHOTO_TRANSFORM)
+  const [photoAdjusted, setPhotoAdjusted] = useState(false)
+  const [participantId, setParticipantId] = useState<string | null>(null)
+  const [muralUploadStatus, setMuralUploadStatus] = useState<MuralUploadStatus>('idle')
+  const pendingRegistrationRef = useRef<Promise<string | null> | null>(null)
+
+  const {
+    status,
+    processedUrl: processedPhotoUrl,
+    processFile,
+    reset,
+  } = useBackgroundRemoval()
+
+  const { canvasRef, isComposing, downloadPNG } = useStampCanvas(stampData, processedPhotoUrl, photoTransform)
+
+  const step =
+    !photoFile || status === 'idle' ? 'upload'
+    : status === 'processing' ? 'processing'
+    : status === 'done' && !photoAdjusted ? 'photo-adjust'
+    : 'editor'
+
+  useEffect(() => {
+    if (photoFile) {
+      processFile(photoFile)
+    }
+  }, [photoFile]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (status !== 'processing') return
+    const id = setInterval(() => {
+      setMsgIndex((i) => (i + 1) % LOADING_MESSAGES.length)
+    }, 1800)
+    return () => clearInterval(id)
+  }, [status])
+
+  function handleReset(): void {
+    setPhotoFile(null)
+    setStampData(EMPTY_STAMP)
+    setPhotoTransform(DEFAULT_PHOTO_TRANSFORM)
+    setPhotoAdjusted(false)
+    setParticipantId(null)
+    setMuralUploadStatus('idle')
+    pendingRegistrationRef.current = null
+    reset()
+  }
+
+  function handlePhotoAdjustConfirm(transform: PhotoTransform): void {
+    setPhotoTransform(transform)
+    setPhotoAdjusted(true)
+  }
+
+  function handlePhotoAdjustSkip(): void {
+    setPhotoAdjusted(true)
+  }
+
+  function handleDownload(): void {
+    downloadPNG()
+    toast.success('Figurinha baixada com sucesso!')
+
+    const country = getCountryByCode(stampData.countryCode)
+    const promise = registerParticipant({
+      nome: stampData.name,
+      email: stampData.email,
+      pais: country?.name ?? stampData.countryCode,
+      paisCode: stampData.countryCode,
+      timestamp: new Date().toISOString(),
+      cargo: stampData.role,
+      area: stampData.area,
+    })
+
+    pendingRegistrationRef.current = promise
+    promise.then((id) => {
+      if (id) setParticipantId(id)
+    })
+  }
+
+  async function handleSendToMural(): Promise<void> {
+    if (muralUploadStatus === 'uploading' || muralUploadStatus === 'done') return
+
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    setMuralUploadStatus('uploading')
+
+    try {
+      // Resolve the participantId — await pending registration, or start a new one
+      let id = participantId
+      if (!id) {
+        if (pendingRegistrationRef.current) {
+          id = await pendingRegistrationRef.current
+        } else {
+          const country = getCountryByCode(stampData.countryCode)
+          const promise = registerParticipant({
+            nome: stampData.name,
+            email: stampData.email,
+            pais: country?.name ?? stampData.countryCode,
+            paisCode: stampData.countryCode,
+            timestamp: new Date().toISOString(),
+            cargo: stampData.role,
+            area: stampData.area,
+          })
+          pendingRegistrationRef.current = promise
+          id = await promise
+        }
+        if (id) setParticipantId(id)
+      }
+
+      if (!id) {
+        setMuralUploadStatus('error')
+        toast.error('Não foi possível enviar para o mural. Tente novamente.')
+        return
+      }
+
+      const pngBlob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob(
+          (blob) => {
+            if (blob) resolve(blob)
+            else reject(new Error('Canvas blob export failed'))
+          },
+          'image/png',
+        )
+      })
+
+      const result = await uploadSticker(pngBlob, id)
+
+      if (result.ok) {
+        setMuralUploadStatus('done')
+        toast.success('Sua figurinha foi adicionada ao mural! 🎉')
+      } else {
+        setMuralUploadStatus('error')
+        toast.error('Não foi possível enviar para o mural. Tente novamente.')
+      }
+    } catch {
+      setMuralUploadStatus('error')
+      toast.error('Não foi possível enviar para o mural. Tente novamente.')
+    }
+  }
+
+  function handleShare(): void {
+    const text = encodeURIComponent(
+      'Acabei de criar minha figurinha do Beyond Summit Innovation Cup 2026! ⚽🏆 #BeyondSummit2026 #EY',
+    )
+    window.open(
+      `https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fbeyondsummit.ey.com&summary=${text}`,
+      '_blank',
+    )
+  }
+
+  // ── Shared background layer (used in all screens) ────────────────────────
+  const sharedBg = (
+    <>
+      <AppBackground />
+      <DecorativeCorners />
+    </>
+  )
+
+  // ── Tela 1: Upload ────────────────────────────────────────────────────────
+  if (step === 'upload') {
+    return (
+      <>
+        <Toaster position="top-right" />
+        {sharedBg}
+        <Header />
+        <div
+          key="screen-upload"
+          className="relative z-10 min-h-screen flex flex-col items-center justify-center p-8 pt-24 md:pt-28 animate-fade-slide-up"
+        >
+          <div className="w-full max-w-lg">
+            <div className="text-center mb-8">
+              <img
+                src="/assets/logo-beyondSummit_fonte_preta.png"
+                alt="Beyond Summit Innovation Cup"
+                className="mx-auto h-20 md:h-24 w-auto object-contain"
+              />
+
+              {/* Divider with year badge */}
+              <div className="flex items-center gap-3 my-4">
+                <div className="h-px flex-1 bg-[#D1D5DB]" />
+                <span className="text-xs font-bold text-[#E0C060] tracking-[0.3em] uppercase">2026</span>
+                <div className="h-px flex-1 bg-[#D1D5DB]" />
+              </div>
+
+              {/* Hero call-to-action */}
+              <h1 className="font-display font-extrabold text-4xl md:text-5xl text-[#111111] uppercase tracking-wide leading-none">
+                Crie sua figurinha
+              </h1>
+              <p className="font-display font-bold text-xl md:text-2xl text-[#2D7A40] uppercase tracking-widest mt-1 leading-tight">
+                exclusiva do evento
+              </p>
+            </div>
+            <UploadZone onFileSelect={setPhotoFile} selectedFile={photoFile} />
+            <p className="mt-4 text-center text-sm font-body text-[#6B7280]">
+              Use uma foto com fundo neutro e rosto centralizado para melhor resultado
+            </p>
+          </div>
+        </div>
+      </>
+    )
+  }
+
+  // ── Tela 2: Loading ───────────────────────────────────────────────────────
+  if (step === 'processing') {
+    return (
+      <>
+        <Toaster position="top-right" />
+        {sharedBg}
+        <Header />
+        <div
+          key="screen-processing"
+          className="relative z-10 min-h-screen flex flex-col items-center justify-center p-8 pt-24 md:pt-28 animate-fade-in"
+        >
+          <div className="w-full max-w-sm text-center space-y-6">
+            <h2 className="font-display text-3xl font-bold text-[#111111] uppercase tracking-wide">
+              Preparando sua figurinha...
+            </h2>
+            <div className="w-full bg-[#E5E7EB] rounded-full h-2 overflow-hidden">
+              <div className="h-full bg-[#1A5C2A] rounded-full animate-[progress_3s_ease-in-out_infinite]" />
+            </div>
+            <div className="flex items-center justify-center gap-3 text-[#374151] font-body">
+              <Loader2 size={18} className="animate-spin text-[#1A5C2A]" />
+              <span className="text-base">{LOADING_MESSAGES[msgIndex]}</span>
+            </div>
+            <p className="text-sm text-[#9CA3AF] font-body">
+              Isso pode levar alguns segundos
+            </p>
+          </div>
+        </div>
+      </>
+    )
+  }
+
+  // ── Tela 3: Ajuste de foto ────────────────────────────────────────────────
+  if (step === 'photo-adjust' && processedPhotoUrl) {
+    return (
+      <>
+        <Toaster position="top-right" />
+        {sharedBg}
+        <Header />
+        <div
+          key="screen-photo-adjust"
+          className="relative z-10 min-h-screen flex flex-col items-center justify-center p-6 pt-24 md:pt-28 animate-fade-slide-up"
+        >
+          <div className="w-full max-w-sm">
+            <PhotoAdjustEditor
+              photoUrl={processedPhotoUrl}
+              onConfirm={handlePhotoAdjustConfirm}
+              onSkip={handlePhotoAdjustSkip}
+            />
+          </div>
+        </div>
+      </>
+    )
+  }
+
+  // ── Tela 4: Editor ────────────────────────────────────────────────────────
+  return (
+    <>
+      <Toaster position="top-right" />
+      {sharedBg}
+      <Header />
+      <div
+        key="screen-editor"
+        className="relative z-10 min-h-screen p-4 pt-20 md:p-6 md:pt-24 lg:p-10 lg:pt-28 animate-slide-in-right"
+      >
+        <div className="max-w-5xl mx-auto">
+          <div className="flex flex-col md:flex-row gap-6 md:gap-8 lg:gap-12 items-start">
+            {/* StampCanvas — live figurinha preview */}
+            <div className="w-full md:w-[280px] lg:w-[380px] shrink-0 animate-scale-reveal">
+              <StampCanvas
+                canvasRef={canvasRef}
+                isComposing={isComposing}
+                photoUrl={processedPhotoUrl}
+              />
+              {/* Re-adjust button */}
+              <button
+                type="button"
+                onClick={() => setPhotoAdjusted(false)}
+                className="mt-2 w-full flex items-center justify-center gap-1.5 py-2 px-4 rounded-[8px] border border-[#D1D5DB] text-[#374151] font-body text-xs font-medium hover:bg-[#F5F5F5] transition-all duration-150"
+              >
+                ✦ Reajustar posição da foto
+              </button>
+            </div>
+
+            {/* Form */}
+            <div className="flex-1 min-w-0">
+              <StampForm
+                value={stampData}
+                onChange={setStampData}
+                onDownload={handleDownload}
+                onShare={handleShare}
+                onReset={handleReset}
+                isDownloadEnabled={isStampComplete(stampData)}
+                onSendToMural={handleSendToMural}
+                muralUploadStatus={muralUploadStatus}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  )
+}

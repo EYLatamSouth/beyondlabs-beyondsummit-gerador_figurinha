@@ -1,6 +1,8 @@
-import { Download, Share2, RotateCcw } from 'lucide-react'
+import { Download, Share2, RotateCcw, Globe, Check, Loader2 } from 'lucide-react'
 import type { StampData } from '@/types/stamp'
 import { CountrySelect } from '@/components/CountrySelect'
+
+type MuralUploadStatus = 'idle' | 'uploading' | 'done' | 'error'
 
 interface StampFormProps {
   value: StampData
@@ -9,6 +11,8 @@ interface StampFormProps {
   onShare?: () => void
   onReset?: () => void
   isDownloadEnabled: boolean
+  onSendToMural?: () => void
+  muralUploadStatus?: MuralUploadStatus
 }
 
 interface FieldLabelProps {
@@ -42,6 +46,8 @@ export function StampForm({
   onShare,
   onReset,
   isDownloadEnabled,
+  onSendToMural,
+  muralUploadStatus = 'idle',
 }: StampFormProps) {
   return (
     <div className="flex flex-col gap-4">
@@ -127,23 +133,62 @@ export function StampForm({
 
       {/* Actions */}
       <div className="flex flex-col gap-2.5">
-        {/* Primary CTA */}
-        <button
-          type="button"
-          onClick={onDownload}
-          disabled={!isDownloadEnabled}
-          className={[
-            'w-full flex items-center justify-center gap-2.5 py-4 px-8 rounded-[8px]',
-            'font-display font-bold text-xl tracking-widest uppercase text-white',
-            'transition-all duration-200',
-            isDownloadEnabled
-              ? 'bg-[#1A5C2A] hover:bg-[#3D9A52] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(26,92,42,0.35)] cursor-pointer'
-              : 'bg-[#9CA3AF] cursor-not-allowed opacity-60',
-          ].join(' ')}
-        >
-          <Download size={20} strokeWidth={2.5} />
-          Baixar Figurinha
-        </button>
+        {/* Primary CTAs */}
+        <div className={onSendToMural ? 'flex gap-2' : ''}>
+          {/* Download button */}
+          <button
+            type="button"
+            onClick={onDownload}
+            disabled={!isDownloadEnabled}
+            className={[
+              'flex items-center justify-center gap-2 py-4 rounded-[8px]',
+              onSendToMural ? 'flex-1 px-3 text-sm' : 'w-full px-8 text-xl',
+              'font-display font-bold tracking-widest uppercase text-white',
+              'transition-all duration-200',
+              isDownloadEnabled
+                ? 'bg-[#1A5C2A] hover:bg-[#3D9A52] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(26,92,42,0.35)] cursor-pointer'
+                : 'bg-[#9CA3AF] cursor-not-allowed opacity-60',
+            ].join(' ')}
+          >
+            <Download size={onSendToMural ? 16 : 20} strokeWidth={2.5} />
+            Baixar Figurinha
+          </button>
+
+          {/* Send to mural button */}
+          {onSendToMural && (() => {
+            const isDisabled = !isDownloadEnabled || muralUploadStatus === 'uploading' || muralUploadStatus === 'done'
+            return (
+              <button
+                type="button"
+                onClick={isDisabled ? undefined : onSendToMural}
+                disabled={isDisabled}
+                className={[
+                  'flex-1 flex items-center justify-center gap-2 py-4 px-3 rounded-[8px]',
+                  'font-display font-bold text-sm tracking-widest uppercase',
+                  'border-2 transition-all duration-200 whitespace-nowrap',
+                  muralUploadStatus === 'done'
+                    ? 'border-[#1A5C2A] text-[#1A5C2A] bg-[#F0FDF4] cursor-default'
+                    : muralUploadStatus === 'uploading' || !isDownloadEnabled
+                    ? 'border-[#9CA3AF] text-[#9CA3AF] cursor-not-allowed opacity-60'
+                    : 'border-[#111111] text-[#111111] hover:bg-[#F5F5F5] cursor-pointer',
+                ].join(' ')}
+              >
+                {muralUploadStatus === 'uploading' && (
+                  <Loader2 size={16} className="animate-spin" />
+                )}
+                {muralUploadStatus === 'done' && <Check size={16} strokeWidth={2.5} />}
+                {(muralUploadStatus === 'idle' || muralUploadStatus === 'error') && (
+                  <Globe size={16} strokeWidth={2.5} />
+                )}
+                {muralUploadStatus === 'uploading'
+                  ? 'Enviando...'
+                  : muralUploadStatus === 'done'
+                  ? 'No mural!'
+                  : 'Enviar pro Mural'}
+              </button>
+            )
+          })()}
+        </div>
 
         {/* Secondary row */}
         <div className="grid grid-cols-2 gap-2">

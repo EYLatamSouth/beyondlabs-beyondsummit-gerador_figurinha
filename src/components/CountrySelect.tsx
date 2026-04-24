@@ -38,8 +38,8 @@ export function CountrySelect({ value, onChange }: CountrySelectProps) {
 
   return (
     <div className="space-y-2.5">
-      {/* Level 1 — Featured chips (4×2 grid) */}
-      <div className="grid grid-cols-4 gap-2">
+      {/* Level 1 — Featured chips (2×4 on mobile, 4×2 on sm+) */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {FEATURED_COUNTRIES.map((country) => {
           const isSelected = value === country.code
           return (
