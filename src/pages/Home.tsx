@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Toaster } from '@/components/ui/sonner'
@@ -12,12 +12,10 @@ import { AppBackground } from '@/components/AppBackground'
 import { useBackgroundRemoval } from '@/hooks/useBackgroundRemoval'
 import { useStampCanvas } from '@/hooks/useStampCanvas'
 import { registerParticipant } from '@/lib/analytics'
-import { uploadSticker } from '@/lib/sticker-upload'
 import { getCountryByCode } from '@/lib/countries'
 import type { StampData, PhotoTransform } from '@/types/stamp'
 import { DEFAULT_PHOTO_TRANSFORM } from '@/types/stamp'
 
-type MuralUploadStatus = 'idle' | 'uploading' | 'done' | 'error'
 
 const EMPTY_STAMP: StampData = {
   name: '',
@@ -49,9 +47,6 @@ export default function Home() {
   const [msgIndex, setMsgIndex] = useState(0)
   const [photoTransform, setPhotoTransform] = useState<PhotoTransform>(DEFAULT_PHOTO_TRANSFORM)
   const [photoAdjusted, setPhotoAdjusted] = useState(false)
-  const [participantId, setParticipantId] = useState<string | null>(null)
-  const [muralUploadStatus, setMuralUploadStatus] = useState<MuralUploadStatus>('idle')
-  const pendingRegistrationRef = useRef<Promise<string | null> | null>(null)
 
   const {
     status,
@@ -87,9 +82,6 @@ export default function Home() {
     setStampData(EMPTY_STAMP)
     setPhotoTransform(DEFAULT_PHOTO_TRANSFORM)
     setPhotoAdjusted(false)
-    setParticipantId(null)
-    setMuralUploadStatus('idle')
-    pendingRegistrationRef.current = null
     reset()
   }
 
@@ -107,7 +99,7 @@ export default function Home() {
     toast.success('Figurinha baixada com sucesso!')
 
     const country = getCountryByCode(stampData.countryCode)
-    const promise = registerParticipant({
+    registerParticipant({
       nome: stampData.name,
       email: stampData.email,
       pais: country?.name ?? stampData.countryCode,
@@ -116,73 +108,6 @@ export default function Home() {
       cargo: stampData.role,
       area: stampData.area,
     })
-
-    pendingRegistrationRef.current = promise
-    promise.then((id) => {
-      if (id) setParticipantId(id)
-    })
-  }
-
-  async function handleSendToMural(): Promise<void> {
-    if (muralUploadStatus === 'uploading' || muralUploadStatus === 'done') return
-
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    setMuralUploadStatus('uploading')
-
-    try {
-      // Resolve the participantId — await pending registration, or start a new one
-      let id = participantId
-      if (!id) {
-        if (pendingRegistrationRef.current) {
-          id = await pendingRegistrationRef.current
-        } else {
-          const country = getCountryByCode(stampData.countryCode)
-          const promise = registerParticipant({
-            nome: stampData.name,
-            email: stampData.email,
-            pais: country?.name ?? stampData.countryCode,
-            paisCode: stampData.countryCode,
-            timestamp: new Date().toISOString(),
-            cargo: stampData.role,
-            area: stampData.area,
-          })
-          pendingRegistrationRef.current = promise
-          id = await promise
-        }
-        if (id) setParticipantId(id)
-      }
-
-      if (!id) {
-        setMuralUploadStatus('error')
-        toast.error('Não foi possível enviar para o mural. Tente novamente.')
-        return
-      }
-
-      const pngBlob = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob(
-          (blob) => {
-            if (blob) resolve(blob)
-            else reject(new Error('Canvas blob export failed'))
-          },
-          'image/png',
-        )
-      })
-
-      const result = await uploadSticker(pngBlob, id)
-
-      if (result.ok) {
-        setMuralUploadStatus('done')
-        toast.success('Sua figurinha foi adicionada ao mural! 🎉')
-      } else {
-        setMuralUploadStatus('error')
-        toast.error('Não foi possível enviar para o mural. Tente novamente.')
-      }
-    } catch {
-      setMuralUploadStatus('error')
-      toast.error('Não foi possível enviar para o mural. Tente novamente.')
-    }
   }
 
   function handleShare(): void {
@@ -339,8 +264,6 @@ export default function Home() {
                 onShare={handleShare}
                 onReset={handleReset}
                 isDownloadEnabled={isStampComplete(stampData)}
-                onSendToMural={handleSendToMural}
-                muralUploadStatus={muralUploadStatus}
               />
             </div>
           </div>

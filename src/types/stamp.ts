@@ -28,13 +28,6 @@ export interface ParticipantRecord {
   area: string;
 }
 
-export interface StickerUploadResult {
-  ok: boolean;
-  stickerUrl?: string;
-  stickerId?: string;
-  error?: string;
-}
-
 export interface Country {
   code: string;        // ISO alpha-2, e.g. 'br'
   codeDisplay: string; // e.g. 'BRA'

@@ -74,7 +74,6 @@ async function registerHandler(
       timestamp,
       cargo: typeof cargo === 'string' ? cargo.trim() : '',
       area: typeof area === 'string' ? area.trim() : '',
-      sharedToMural: false,
     })
 
     return { status: 200, jsonBody: { ok: true, id } }

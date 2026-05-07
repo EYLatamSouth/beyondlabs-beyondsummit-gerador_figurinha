@@ -137,7 +137,6 @@
 
 ## Fase 2 — Engajamento (pós-MVP, se validado)
 
-- [ ] Mural coletivo: Azure Blob Storage para armazenar figurinhas + página de exibição com lazy loading
 - [ ] Envio da figurinha por email (Azure Functions + Azure Communication Services)
 - [ ] Compartilhamento direto com imagem no LinkedIn (requer OAuth)
 
