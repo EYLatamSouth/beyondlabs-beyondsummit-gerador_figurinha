@@ -22,17 +22,26 @@ export function useStampCanvas(
   const [isComposing, setIsComposing] = useState(false)
   const [isRare, setIsRare] = useState(false)
 
+  // Canvas preview reflects only forceRare. isRare is exclusively set during
+  // downloadPNG for the toast return value — it does NOT re-trigger composition
+  // to avoid double-compose and stale "rare" preview after forceRare is toggled off.
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas || !photoUrl) return
 
     setIsComposing(true)
-    composeLayers(canvas, stampData, photoUrl, photoTransform, forceRare || isRare)
+    composeLayers(canvas, stampData, photoUrl, photoTransform, forceRare)
       .catch((err) => console.error('[useStampCanvas] composeLayers error:', err))
       .finally(() => setIsComposing(false))
-  }, [stampData, photoUrl, photoTransform, forceRare, isRare])
+  }, [stampData, photoUrl, photoTransform, forceRare])
 
-  // Returns true if the downloaded sticker is rare (for toast feedback)
+  // Reset rare badge state whenever forceRare is toggled off
+  useEffect(() => {
+    if (!forceRare) setIsRare(false)
+  }, [forceRare])
+
+  // Returns true if the downloaded sticker is rare (for toast feedback).
+  // Explicitly re-composes with the rare template before exporting when needed.
   const downloadPNG = useCallback(async (): Promise<boolean> => {
     const canvas = canvasRef.current
     if (!canvas) return false
@@ -40,11 +49,8 @@ export function useStampCanvas(
     const rare = forceRare || rollRarity()
     setIsRare(rare)
 
-    if (rare) {
-      // Re-compose with rare template before exporting
-      await composeLayers(canvas, stampData, photoUrl!, photoTransform, true)
-    }
-
+    // Always compose immediately before export to capture the correct template.
+    await composeLayers(canvas, stampData, photoUrl!, photoTransform, rare)
     exportPNG(canvas, 'figurinha_beyondsummit2026.png')
     return rare
   }, [forceRare, stampData, photoUrl, photoTransform])

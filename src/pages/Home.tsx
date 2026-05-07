@@ -259,18 +259,20 @@ export default function Home() {
               >
                 ✦ Reajustar posição da foto
               </button>
-              {/* Force-rare toggle — MVP test button */}
-              <button
-                type="button"
-                onClick={() => setForceRare((v) => !v)}
-                className={`mt-2 w-full flex items-center justify-center gap-1.5 py-2 px-4 rounded-[8px] border font-body text-xs font-medium transition-all duration-150 ${
-                  forceRare
-                    ? 'bg-[#C9A84C] border-[#C9A84C] text-white'
-                    : 'border-[#C9A84C] text-[#C9A84C] hover:bg-[#FBF5E6]'
-                }`}
-              >
-                ⭐ {forceRare ? 'Figurinha rara ativada' : 'Ver figurinha rara (teste)'}
-              </button>
+              {/* Force-rare toggle — MVP test button (dev only) */}
+              {import.meta.env.DEV && (
+                <button
+                  type="button"
+                  onClick={() => setForceRare((v) => !v)}
+                  className={`mt-2 w-full flex items-center justify-center gap-1.5 py-2 px-4 rounded-[8px] border font-body text-xs font-medium transition-all duration-150 ${
+                    forceRare
+                      ? 'bg-[#C9A84C] border-[#C9A84C] text-white'
+                      : 'border-[#C9A84C] text-[#C9A84C] hover:bg-[#FBF5E6]'
+                  }`}
+                >
+                  ⭐ {forceRare ? 'Figurinha rara ativada' : 'Ver figurinha rara (teste)'}
+                </button>
+              )}
             </div>
 
             {/* Form */}
