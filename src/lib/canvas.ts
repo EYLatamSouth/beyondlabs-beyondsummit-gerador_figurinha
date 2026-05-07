@@ -149,6 +149,7 @@ export async function composeLayers(
   stampData: StampData,
   photoUrl: string,
   photoTransform: PhotoTransform = DEFAULT_PHOTO_TRANSFORM,
+  isRare = false,
 ): Promise<void> {
   canvas.width = CANVAS_WIDTH
   canvas.height = CANVAS_HEIGHT
@@ -171,15 +172,17 @@ export async function composeLayers(
   const PHOTO_W = CANVAS_WIDTH - PHOTO_PADDING_X * 2
   const PHOTO_H = 930  // clip ends at y=1010; flag card starts at y=830, name card at y=1000
 
-  // ── Step 1: Template background (figurinha-bg.png) ────────────────────────
+  // ── Step 1: Template background ───────────────────────────────────────────
   // Drawn first. The user photo (background-removed by @imgly) composites on top —
   // transparent photo pixels naturally reveal the teal template and BS branding.
+  // Rare stickers use figurinha-bg-rara.png instead of the standard template.
+  const templateSrc = isRare ? '/template/figurinha-bg-rara.png' : '/template/figurinha-bg.png'
   try {
-    const template = await loadImage('/template/figurinha-bg.png')
+    const template = await loadImage(templateSrc)
     ctx.drawImage(template, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT)
   } catch {
-    console.error('[canvas] Template not found — check public/template/figurinha-bg.png')
-    ctx.fillStyle = '#0D7B73'
+    console.error(`[canvas] Template not found — check public/template/${isRare ? 'figurinha-bg-rara.png' : 'figurinha-bg.png'}`)
+    ctx.fillStyle = isRare ? '#C9A84C' : '#0D7B73'
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT)
   }
 

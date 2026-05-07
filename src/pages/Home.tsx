@@ -47,6 +47,7 @@ export default function Home() {
   const [msgIndex, setMsgIndex] = useState(0)
   const [photoTransform, setPhotoTransform] = useState<PhotoTransform>(DEFAULT_PHOTO_TRANSFORM)
   const [photoAdjusted, setPhotoAdjusted] = useState(false)
+  const [forceRare, setForceRare] = useState(false)
 
   const {
     status,
@@ -55,7 +56,7 @@ export default function Home() {
     reset,
   } = useBackgroundRemoval()
 
-  const { canvasRef, isComposing, downloadPNG } = useStampCanvas(stampData, processedPhotoUrl, photoTransform)
+  const { canvasRef, isComposing, isRare, downloadPNG } = useStampCanvas(stampData, processedPhotoUrl, photoTransform, forceRare)
 
   const step =
     !photoFile || status === 'idle' ? 'upload'
@@ -94,9 +95,13 @@ export default function Home() {
     setPhotoAdjusted(true)
   }
 
-  function handleDownload(): void {
-    downloadPNG()
-    toast.success('Figurinha baixada com sucesso!')
+  async function handleDownload(): Promise<void> {
+    const rare = await downloadPNG()
+    if (rare) {
+      toast.success('⭐ Você ganhou uma figurinha rara!')
+    } else {
+      toast.success('Figurinha baixada com sucesso!')
+    }
 
     const country = getCountryByCode(stampData.countryCode)
     registerParticipant({
@@ -244,6 +249,7 @@ export default function Home() {
                 canvasRef={canvasRef}
                 isComposing={isComposing}
                 photoUrl={processedPhotoUrl}
+                isRare={isRare || forceRare}
               />
               {/* Re-adjust button */}
               <button
@@ -252,6 +258,18 @@ export default function Home() {
                 className="mt-2 w-full flex items-center justify-center gap-1.5 py-2 px-4 rounded-[8px] border border-[#D1D5DB] text-[#374151] font-body text-xs font-medium hover:bg-[#F5F5F5] transition-all duration-150"
               >
                 ✦ Reajustar posição da foto
+              </button>
+              {/* Force-rare toggle — MVP test button */}
+              <button
+                type="button"
+                onClick={() => setForceRare((v) => !v)}
+                className={`mt-2 w-full flex items-center justify-center gap-1.5 py-2 px-4 rounded-[8px] border font-body text-xs font-medium transition-all duration-150 ${
+                  forceRare
+                    ? 'bg-[#C9A84C] border-[#C9A84C] text-white'
+                    : 'border-[#C9A84C] text-[#C9A84C] hover:bg-[#FBF5E6]'
+                }`}
+              >
+                ⭐ {forceRare ? 'Figurinha rara ativada' : 'Ver figurinha rara (teste)'}
               </button>
             </div>
 

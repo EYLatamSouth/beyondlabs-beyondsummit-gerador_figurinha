@@ -5,9 +5,10 @@ interface StampCanvasProps {
   canvasRef: React.RefObject<HTMLCanvasElement>
   isComposing: boolean
   photoUrl: string | null
+  isRare?: boolean
 }
 
-export function StampCanvas({ canvasRef, isComposing, photoUrl }: StampCanvasProps) {
+export function StampCanvas({ canvasRef, isComposing, photoUrl, isRare = false }: StampCanvasProps) {
   return (
     <div className="flex flex-col items-center w-full">
       {/* Card wrapper — maintains 3:4 aspect ratio */}
@@ -34,6 +35,13 @@ export function StampCanvas({ canvasRef, isComposing, photoUrl }: StampCanvasPro
             </div>
           )}
         </div>
+
+        {/* Rare sticker badge */}
+        {isRare && (
+          <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-[#C9A84C] text-white text-xs font-bold font-display uppercase tracking-wide px-3 py-1.5 rounded-full shadow-lg">
+            ⭐ Figurinha Rara!
+          </div>
+        )}
 
         {/* Composing overlay */}
         {isComposing && (
