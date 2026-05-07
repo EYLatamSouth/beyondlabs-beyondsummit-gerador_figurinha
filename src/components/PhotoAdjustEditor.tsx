@@ -6,8 +6,8 @@ import { DEFAULT_PHOTO_TRANSFORM } from '@/types/stamp'
 // Canvas dimensions — must match canvas.ts constants
 const CANVAS_WIDTH = 900
 const CANVAS_HEIGHT = 1200
-const PHOTO_ZONE_Y = 235       // y where the photo area starts in canvas space
-const PHOTO_ZONE_H = 755       // height of the photo area in canvas space
+const PHOTO_ZONE_Y = 80        // y where the photo area starts in canvas space
+const PHOTO_ZONE_H = 950       // height of the photo area in canvas space
 
 interface PhotoAdjustEditorProps {
   photoUrl: string
@@ -240,7 +240,7 @@ export function PhotoAdjustEditor({ photoUrl, onConfirm, onSkip }: PhotoAdjustEd
         >
           {/* Template background */}
           <img
-            src="/template/figurinha-template.webp"
+            src="/template/figurinha-bg.png"
             alt=""
             aria-hidden
             className="absolute inset-0 w-full h-full object-fill pointer-events-none select-none"

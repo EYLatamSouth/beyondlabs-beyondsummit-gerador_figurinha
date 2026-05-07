@@ -126,12 +126,15 @@ Upload foto
 ## Layers do Canvas (ordem obrigatória)
 
 ```
-1. figurinha-bg.png       — /public/template/figurinha-bg.png
-2. Foto do usuário        — blob URL com fundo removido
-3. figurinha-overlay.png  — /public/template/figurinha-overlay.png
-4. Bandeira do país       — /public/flags/[countryCode].svg
-5. Textos                 — NOME (bold grande) + CARGO | ÁREA (tag verde)
+1. figurinha-bg.png   — /public/template/figurinha-bg.png (teal full-card, branding baked in)
+2. Foto do usuário    — blob URL com fundo removido (zona y=80 a y=830, full width)
+3. Card bandeira      — white rounded card desenhado dinamicamente, bottom-right (x≈600, y≈820)
+                        layout vertical: flag em cima, código ISO embaixo
+4. Textos             — NOME (800 bold, ~88px, shrinks to fit) + Área (400 regular, ~38px)
+                        sobre white card baked no template, bottom-left (x≈30, y≈1030)
 ```
+
+> Cargo foi removido do canvas no novo template FY26.
 
 ---
 

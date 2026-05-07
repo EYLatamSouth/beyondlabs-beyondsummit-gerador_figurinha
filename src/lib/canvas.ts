@@ -126,19 +126,22 @@ async function loadFlagSvg(countryCode: string): Promise<HTMLImageElement | null
 
 // ── Layer composition ─────────────────────────────────────────────────────────
 //
-// Template pixel map (900 × 1200):
+// Template pixel map (900 × 1200) — new teal BS FY26 layout:
 //
 //   ┌──────────────────────────────────────────────────────┐ y=0
-//   │  dark green band (#1A5C2A)                           │
-//   │  BS logo (left)   │  "BEYOND SUMMIT" (top-right)     │
-//   │                   │  [ FLAG | CODE ] white box       │ y≈130–230
-//   ├──────────────────────────────────────────────────────┤ y≈235
-//   │  lighter green background + white person silhouette  │
-//   │  (user photo drawn on top here — full width)         │
+//   │  teal full-card background                           │
+//   │  "BEYOND SUMMIT" branding + trophy (top area)        │
+//   ├──────────────────────────────────────────────────────┤ y≈80
+//   │  user photo zone (full width)                        │
+//   │  clip ends at y=1030 — photo extends under the cards │
+//   │  transparent pixels reveal the template behind       │
 //   │                                                      │
-//   ├──────────────────────────────────────────────────────┤ y≈990
-//   │  white area: NOME AQUI (bold black ~96px)            │ y≈1060–1130
-//   │  [CARGO] [ÁREA]  green tag boxes (~44px)             │ y≈1145–1189
+//   │  [ FLAG  ] white rounded card — bottom-right         │ x≈595, y≈830, w≈280, h≈215
+//   │  [ CODE  ] e.g. "BRA", centered below flag           │ drawn over photo
+//   │                                                      │
+//   │  white rounded card — bottom-left                    │ x≈25,  y≈1000, w≈550, h≈175
+//   │  NOME AQUI  (bold black 80–90px)                     │ drawn over photo
+//   │  Área de Atuação  (regular black ~40px)              │
 //   └──────────────────────────────────────────────────────┘ y=1200
 
 export async function composeLayers(
@@ -156,122 +159,44 @@ export async function composeLayers(
   ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT)
 
   await Promise.allSettled([
-    document.fonts.load('800 96px "Barlow Condensed"'),
-    document.fonts.load('700 44px "Barlow Condensed"'),
+    document.fonts.load('800 70px "Barlow Condensed"'),
+    document.fonts.load('700 34px "Barlow Condensed"'),
   ])
 
-  // Photo area constants — full canvas width, from header bottom to text area top
-  const PHOTO_X = 0
-  const PHOTO_Y = 235
-  const PHOTO_W = CANVAS_WIDTH
-  const PHOTO_H = 755  // ends at y=990, before the white bottom section
+  // Photo area constants. Adjust PHOTO_PADDING_X to control how far the photo
+  // stays from the left/right borders of the sticker (symmetric). 0 = full width.
+  const PHOTO_PADDING_X = 45  // ← tweak this to test: try 0, 20, 40, 60…
+  const PHOTO_X = PHOTO_PADDING_X
+  const PHOTO_Y = 80
+  const PHOTO_W = CANVAS_WIDTH - PHOTO_PADDING_X * 2
+  const PHOTO_H = 930  // clip ends at y=1010; flag card starts at y=830, name card at y=1000
 
-  // ── Step 1: Template background ───────────────────────────────────────────
-  // Drawn first as background. The user photo (already background-removed by @imgly)
-  // is composited on top, so no multiply trick is needed — transparent photo pixels
-  // naturally reveal the green/BS-letter template behind the person.
+  // ── Step 1: Template background (figurinha-bg.png) ────────────────────────
+  // Drawn first. The user photo (background-removed by @imgly) composites on top —
+  // transparent photo pixels naturally reveal the teal template and BS branding.
   try {
-    const template = await loadImage('/template/figurinha-template.webp')
+    const template = await loadImage('/template/figurinha-bg.png')
     ctx.drawImage(template, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT)
   } catch {
-    console.error('[canvas] Template not found — check public/template/figurinha-template.webp')
-    // Minimal fallback background
-    ctx.fillStyle = '#3D9A52'
+    console.error('[canvas] Template not found — check public/template/figurinha-bg.png')
+    ctx.fillStyle = '#0D7B73'
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT)
-    ctx.fillStyle = '#1A5C2A'
-    ctx.fillRect(0, 0, CANVAS_WIDTH, PHOTO_Y)
   }
 
-  // ── Step 2: Flag + country code (overwrite template's Brazil placeholder) ──
-  // Layout constants
-  const FLAG_BOX_Y = 130
-  const FLAG_BOX_H = 100
-  const FLAG_BOX_R = 14
-  const FLAG_INNER_PAD = 18   // left/right inner padding
-  const FLAG_IMG_W = 96
-  const FLAG_IMG_H = Math.round(FLAG_IMG_W * (2 / 3))  // 64 — 3:2 ratio
-  const FLAG_TEXT_GAP = 18    // gap between flag and code text
-  const CODE_FONT_SIZE = 72
-
-  const country = getCountryByCode(stampData.countryCode)
-  const codeDisplay = country?.codeDisplay ?? '— —'
-
-  // Measure text width so the box is sized exactly to its content
-  ctx.font = `800 ${CODE_FONT_SIZE}px "Barlow Condensed", sans-serif`
-  const codeTextW = ctx.measureText(codeDisplay).width
-
-  // Box width = left_pad + flag + gap + code_text + right_pad (no excess space)
-  const FLAG_BOX_W = Math.ceil(FLAG_INNER_PAD + FLAG_IMG_W + FLAG_TEXT_GAP + codeTextW + FLAG_INNER_PAD)
-  // Right-align to x=875 (the template placeholder's right edge)
-  const FLAG_BOX_X = 875 - FLAG_BOX_W
-
-  // White rounded box — tight fit around content
-  fillRoundedRect(ctx, FLAG_BOX_X, FLAG_BOX_Y, FLAG_BOX_W, FLAG_BOX_H, FLAG_BOX_R, '#FFFFFF')
-
-  const FLAG_IMG_X = FLAG_BOX_X + FLAG_INNER_PAD
-  const FLAG_IMG_Y = FLAG_BOX_Y + Math.round((FLAG_BOX_H - FLAG_IMG_H) / 2)
-
-  if (country) {
-    // Try SVG from country-flag-icons, then emoji fallback
-    const flagImg = await loadFlagSvg(stampData.countryCode)
-    if (flagImg) {
-      ctx.save()
-      ctx.beginPath()
-      ctx.roundRect(FLAG_IMG_X, FLAG_IMG_Y, FLAG_IMG_W, FLAG_IMG_H, 4)
-      ctx.clip()
-      ctx.drawImage(flagImg, FLAG_IMG_X, FLAG_IMG_Y, FLAG_IMG_W, FLAG_IMG_H)
-      ctx.restore()
-    } else {
-      // Emoji fallback
-      ctx.save()
-      ctx.font = '52px sans-serif'
-      ctx.textAlign = 'left'
-      ctx.textBaseline = 'middle'
-      ctx.fillText(
-        country.code.toUpperCase().replace(/./g, (c) =>
-          String.fromCodePoint(0x1f1e6 - 65 + c.charCodeAt(0)),
-        ),
-        FLAG_IMG_X,
-        FLAG_IMG_Y + FLAG_IMG_H / 2,
-      )
-      ctx.restore()
-    }
-
-    // Country code (e.g. "BRA") — fixed 72px, right of flag
-    const CODE_X = FLAG_IMG_X + FLAG_IMG_W + FLAG_TEXT_GAP
-    const CODE_Y = FLAG_BOX_Y + FLAG_BOX_H / 2
-    drawText(ctx, country.codeDisplay, CODE_X, CODE_Y, {
-      font: `800 ${CODE_FONT_SIZE}px "Barlow Condensed", sans-serif`,
-      color: '#111111',
-      align: 'left',
-      baseline: 'middle',
-    })
-  } else {
-    // No country selected — placeholder centered in box
-    drawText(ctx, codeDisplay, FLAG_BOX_X + FLAG_BOX_W / 2, FLAG_BOX_Y + FLAG_BOX_H / 2, {
-      font: '700 32px "Barlow Condensed", sans-serif',
-      color: '#9CA3AF',
-      align: 'center',
-      baseline: 'middle',
-    })
-  }
-
-  // ── Step 3: User photo (background already removed by @imgly) ───────────────
-  // Drawn on top of the template with normal blend. The transparent areas of the
-  // photo naturally reveal the green template and "BS" letter silhouette behind
-  // the person — no multiply trick needed.
+  // ── Step 2: User photo (background already removed by @imgly) ───────────────
+  // Drawn on top of the template. Transparent photo pixels reveal the teal template
+  // and branding behind/around the person — no multiply trick needed.
   try {
     const photo = await loadImage(photoUrl)
     // Base cover-scale fills the photo zone. photoTransform.scale multiplies on top.
-    // The photo is anchored to the CENTER of the photo zone, matching the editor's
-    // coordinate system exactly. offsetX/offsetY are canvas-px deltas from that center.
+    // Photo is anchored to the CENTER of the photo zone, matching the editor's coords.
     const baseScale = Math.max(PHOTO_W / photo.naturalWidth, PHOTO_H / photo.naturalHeight)
     const effectiveScale = baseScale * photoTransform.scale
     const dw = photo.naturalWidth * effectiveScale
     const dh = photo.naturalHeight * effectiveScale
 
     const zoneCenterX = PHOTO_X + PHOTO_W / 2   // 450
-    const zoneCenterY = PHOTO_Y + PHOTO_H / 2   // 612.5
+    const zoneCenterY = PHOTO_Y + PHOTO_H / 2   // 455
 
     const dx = zoneCenterX - dw / 2 + photoTransform.offsetX
     const dy = zoneCenterY - dh / 2 + photoTransform.offsetY
@@ -286,63 +211,125 @@ export async function composeLayers(
     console.error('[canvas] Failed to draw user photo')
   }
 
-  // ── Step 4: Bottom text area (cover template's "NOME AQUI" / "CARGO" / "ÁREA") ─
-  // Template placeholder text starts ~y=990; cover from there to bottom.
-  const BOTTOM_Y = 990
-  ctx.fillStyle = '#FFFFFF'
-  ctx.fillRect(0, BOTTOM_Y, CANVAS_WIDTH, CANVAS_HEIGHT - BOTTOM_Y)
+  // ── Step 3: Flag card — vertical layout, bottom-right ────────────────────
+  // White rounded card with flag image on top and country code centered below.
+  // Starts just at the photo zone bottom (y=830) to overlap slightly, as per design.
+  const FLAG_CARD_X = 675
+  const FLAG_CARD_Y = 815
+  const FLAG_CARD_W = 180
+  const FLAG_CARD_H = 175
+  const FLAG_CARD_R = 10
 
-  // ── Name ──────────────────────────────────────────────────────────────────
+  const FLAG_IMG_W = 80
+  const FLAG_IMG_H = Math.round(FLAG_IMG_W * (2 / 3))  // 80 — 3:2 ratio
+  const FLAG_IMG_X = FLAG_CARD_X + Math.round((FLAG_CARD_W - FLAG_IMG_W) / 2)
+  const FLAG_IMG_Y = FLAG_CARD_Y + 24
+
+  const CODE_FONT_SIZE = 72
+  const CODE_X = FLAG_CARD_X + FLAG_CARD_W / 2
+  const CODE_Y = FLAG_IMG_Y + FLAG_IMG_H + 14 + Math.round(CODE_FONT_SIZE * 0.75)
+
+  const country = getCountryByCode(stampData.countryCode)
+  const codeDisplay = country?.codeDisplay ?? '— —'
+
+  // White rounded card
+  fillRoundedRect(ctx, FLAG_CARD_X, FLAG_CARD_Y, FLAG_CARD_W, FLAG_CARD_H, FLAG_CARD_R, '#FFFFFF')
+
+  if (country) {
+    const flagImg = await loadFlagSvg(stampData.countryCode)
+    if (flagImg) {
+      ctx.save()
+      ctx.beginPath()
+      ctx.roundRect(FLAG_IMG_X, FLAG_IMG_Y, FLAG_IMG_W, FLAG_IMG_H, 4)
+      ctx.clip()
+      ctx.drawImage(flagImg, FLAG_IMG_X, FLAG_IMG_Y, FLAG_IMG_W, FLAG_IMG_H)
+      ctx.restore()
+    } else {
+      // Emoji fallback centered in the flag slot
+      ctx.save()
+      ctx.font = '52px sans-serif'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(
+        country.code.toUpperCase().replace(/./g, (c) =>
+          String.fromCodePoint(0x1f1e6 - 65 + c.charCodeAt(0)),
+        ),
+        FLAG_IMG_X + FLAG_IMG_W / 2,
+        FLAG_IMG_Y + FLAG_IMG_H / 2,
+      )
+      ctx.restore()
+    }
+
+    // Country code (e.g. "BRA") — centered below the flag image
+    drawText(ctx, country.codeDisplay, CODE_X, CODE_Y, {
+      font: `800 ${CODE_FONT_SIZE}px "Barlow Condensed", sans-serif`,
+      color: '#111111',
+      align: 'center',
+      baseline: 'alphabetic',
+    })
+  } else {
+    // No country selected — placeholder centered in card
+    drawText(ctx, codeDisplay, FLAG_CARD_X + FLAG_CARD_W / 2, FLAG_CARD_Y + FLAG_CARD_H / 2, {
+      font: '700 32px "Barlow Condensed", sans-serif',
+      color: '#9CA3AF',
+      align: 'center',
+      baseline: 'middle',
+    })
+  }
+
+  // ── Step 4: Name + role/area text on the bottom-left white card ──────────
+  // Card dimensions are fixed. Font sizes shrink to fit inside the card.
+  const NAME_CARD_X = 59
+  const NAME_CARD_Y = 1015
+  const NAME_CARD_W = 652   // stays clear of the flag card (starts at x≈675)
+  const NAME_CARD_H = 112
+  const NAME_CARD_R = 20
+  const NAME_LEFT = NAME_CARD_X + 20
+  const NAME_MAX_W = NAME_CARD_W - 40
+
+  fillRoundedRect(ctx, NAME_CARD_X, NAME_CARD_Y, NAME_CARD_W, NAME_CARD_H, NAME_CARD_R, '#ffffff')
+
+  // ── Name — top line, baseline at card y+60 ────────────────────────────────
   const nameText = stampData.name.trim() ? stampData.name.toUpperCase() : 'NOME AQUI'
-  const NAME_LEFT = 37
-  const NAME_MAX_W = CANVAS_WIDTH - NAME_LEFT * 2
 
   const nameFontSize = shrinkFontToFit(
     ctx,
     nameText,
     NAME_MAX_W,
     (s) => `800 ${s}px "Barlow Condensed", sans-serif`,
-    96,
-    36,
+    58,
+    20,
   )
 
-  // Name baseline: ~85px into the white section (visually top-aligned with padding)
-  drawText(ctx, nameText, NAME_LEFT, BOTTOM_Y + 85, {
+  drawText(ctx, nameText, NAME_LEFT, NAME_CARD_Y + 60, {
     font: `800 ${nameFontSize}px "Barlow Condensed", sans-serif`,
     color: stampData.name.trim() ? '#111111' : '#CCCCCC',
     align: 'left',
     maxWidth: NAME_MAX_W,
   })
 
-  // ── CARGO and ÁREA — two separate green boxes ─────────────────────────────
-  const TAG_Y = BOTTOM_Y + 112
-  const TAG_H = 44
-  const TAG_FONT = '700 26px "Barlow Condensed", sans-serif'
-  const TAG_BG = '#3D9A52'
-  const TAG_PAD_X = 16
+  // ── Role | Área — second line, baseline at card y+98 ──────────────────────
+  const rolePart = stampData.role.trim()
+  const areaPart = stampData.area.trim()
+  const roleAreaText =
+    rolePart && areaPart
+      ? `${rolePart} | ${areaPart}`
+      : rolePart || areaPart || 'Cargo | Área'
+  const roleAreaColor = rolePart || areaPart ? '#000000' : '#BBBBBB'
 
-  ctx.font = TAG_FONT
+  const roleAreaFontSize = shrinkFontToFit(
+    ctx,
+    roleAreaText,
+    NAME_MAX_W,
+    (s) => `700 ${s}px "Barlow Condensed", sans-serif`,
+    30,
+    14,
+  )
 
-  const cargoText = stampData.role.trim() ? stampData.role.toUpperCase() : 'CARGO'
-  const areaText = stampData.area.trim() ? stampData.area.toUpperCase() : 'ÁREA'
-
-  const cargoW = Math.max(ctx.measureText(cargoText).width + TAG_PAD_X * 2, 90)
-  const areaW = Math.max(ctx.measureText(areaText).width + TAG_PAD_X * 2, 90)
-
-  fillRoundedRect(ctx, NAME_LEFT, TAG_Y, cargoW, TAG_H, 5, TAG_BG)
-  drawText(ctx, cargoText, NAME_LEFT + TAG_PAD_X, TAG_Y + TAG_H / 2, {
-    font: TAG_FONT,
-    color: '#FFFFFF',
+  drawText(ctx, roleAreaText, NAME_LEFT, NAME_CARD_Y + 98, {
+    font: `700 ${roleAreaFontSize}px "Barlow Condensed", sans-serif`,
+    color: roleAreaColor,
     align: 'left',
-    baseline: 'middle',
+    maxWidth: NAME_MAX_W,
   })
-
-  const areaX = NAME_LEFT + cargoW + 10
-  fillRoundedRect(ctx, areaX, TAG_Y, areaW, TAG_H, 5, TAG_BG)
-  drawText(ctx, areaText, areaX + TAG_PAD_X, TAG_Y + TAG_H / 2, {
-    font: TAG_FONT,
-    color: '#FFFFFF',
-    align: 'left',
-    baseline: 'middle',
-  })
-}
+}
