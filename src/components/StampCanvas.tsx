@@ -11,6 +11,15 @@ interface StampCanvasProps {
 export function StampCanvas({ canvasRef, isComposing, photoUrl, isRare = false }: StampCanvasProps) {
   return (
     <div className="flex flex-col items-center w-full">
+        {/* Rare sticker badge — outside the sticker, centered above */}
+      {isRare && (
+        <div className="flex justify-center mb-2">
+          <div className="flex items-center gap-1.5 bg-[#C9A84C] text-white text-xs font-bold font-display uppercase tracking-wide px-4 py-1.5 rounded-full shadow-md">
+            ⭐ Figurinha Rara!
+          </div>
+        </div>
+      )}
+
       {/* Card wrapper — maintains 3:4 aspect ratio */}
       <div className="relative w-full rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.18)] bg-white">
         {/* 3:4 aspect-ratio enforcer */}
@@ -35,13 +44,6 @@ export function StampCanvas({ canvasRef, isComposing, photoUrl, isRare = false }
             </div>
           )}
         </div>
-
-        {/* Rare sticker badge */}
-        {isRare && (
-          <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-[#C9A84C] text-white text-xs font-bold font-display uppercase tracking-wide px-3 py-1.5 rounded-full shadow-lg">
-            ⭐ Figurinha Rara!
-          </div>
-        )}
 
         {/* Composing overlay */}
         {isComposing && (
