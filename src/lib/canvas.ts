@@ -1,6 +1,6 @@
 import type { StampData, PhotoTransform } from '@/types/stamp'
 import { DEFAULT_PHOTO_TRANSFORM } from '@/types/stamp'
-import { getCountryByCode } from '@/lib/countries'
+import { getCountryByCode, getCountryPalette } from '@/lib/countries'
 
 const CANVAS_WIDTH = 900
 const CANVAS_HEIGHT = 1200
@@ -124,6 +124,72 @@ async function loadFlagSvg(countryCode: string): Promise<HTMLImageElement | null
   }
 }
 
+// ── Template colour tinting ───────────────────────────────────────────────────
+// Source colours in the BS template that identify the "Brasil" palette:
+const SOURCE_GREEN:  [number, number, number] = [68,  152,  69]  // #449845
+const SOURCE_YELLOW: [number, number, number] = [250, 230,  77]  // #FAE64D
+const TINT_TOLERANCE = 50 // Euclidean RGB distance threshold
+
+function hexToRgb(hex: string): [number, number, number] {
+  const h = hex.replace('#', '')
+  return [
+    parseInt(h.substring(0, 2), 16),
+    parseInt(h.substring(2, 4), 16),
+    parseInt(h.substring(4, 6), 16),
+  ]
+}
+
+function colorDist(r: number, g: number, b: number, r2: number, g2: number, b2: number): number {
+  return Math.sqrt((r - r2) ** 2 + (g - g2) ** 2 + (b - b2) ** 2)
+}
+
+// Replaces the template's green/yellow pixels with the given country palette colours.
+// Luminance-preserving: keeps the relative brightness of each pixel so shaded/lit
+// edges (antialiasing against the teal background) map smoothly to the target hue.
+function tintTemplate(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  primaryHex: string,
+  secondaryHex: string,
+): void {
+  const [pr, pg, pb]   = hexToRgb(primaryHex)
+  const [sr, sg, sb]   = hexToRgb(secondaryHex)
+  const [sgr, sgg, sgb] = SOURCE_GREEN
+  const [syr, syg, syb] = SOURCE_YELLOW
+
+  const srcLumGreen  = (sgr + sgg + sgb) / 3 || 1
+  const srcLumYellow = (syr + syg + syb) / 3 || 1
+
+  const imageData = ctx.getImageData(0, 0, width, height)
+  const data = imageData.data
+
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i], g = data[i + 1], b = data[i + 2]
+
+    const dg = colorDist(r, g, b, sgr, sgg, sgb)
+    if (dg <= TINT_TOLERANCE) {
+      const lum = (r + g + b) / 3
+      const factor = lum / srcLumGreen
+      data[i]     = Math.min(255, Math.round(pr * factor))
+      data[i + 1] = Math.min(255, Math.round(pg * factor))
+      data[i + 2] = Math.min(255, Math.round(pb * factor))
+      continue
+    }
+
+    const dy = colorDist(r, g, b, syr, syg, syb)
+    if (dy <= TINT_TOLERANCE) {
+      const lum = (r + g + b) / 3
+      const factor = lum / srcLumYellow
+      data[i]     = Math.min(255, Math.round(sr * factor))
+      data[i + 1] = Math.min(255, Math.round(sg * factor))
+      data[i + 2] = Math.min(255, Math.round(sb * factor))
+    }
+  }
+
+  ctx.putImageData(imageData, 0, 0)
+}
+
 // ── Layer composition ─────────────────────────────────────────────────────────
 //
 // Template pixel map (900 × 1200) — new teal BS FY26 layout:
@@ -185,6 +251,12 @@ export async function composeLayers(
     ctx.fillStyle = isRare ? '#C9A84C' : '#0D7B73'
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT)
   }
+
+  // ── Step 1b: Country colour tinting ──────────────────────────────────────
+  // Replaces the template's green/yellow BS silhouette colours with the two
+  // primary colours of the selected country's flag. Brasil is a no-op.
+  const [palettePrimary, paletteSecondary] = getCountryPalette(stampData.countryCode)
+  tintTemplate(ctx, CANVAS_WIDTH, CANVAS_HEIGHT, palettePrimary, paletteSecondary)
 
   // ── Step 2: User photo (background already removed by @imgly) ───────────────
   // Drawn on top of the template. Transparent photo pixels reveal the teal template

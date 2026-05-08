@@ -1,5 +1,40 @@
 import type { Country } from '@/types/stamp'
 
+// ── Country colour palettes for dynamic template tinting ──────────────────────
+// Each entry is [primary, secondary]:
+//   primary   → replaces the green  (#449845) in the BS silhouette
+//   secondary → replaces the yellow (#FAE64D) in the BS silhouette
+// Brasil is the identity/no-op (uses the template's original colours).
+export const COUNTRY_PALETTE: Record<string, [string, string]> = {
+  br: ['#449845', '#FAE64D'], // Brasil      — Verde + Amarelo (original, no-op)
+  ar: ['#74ACDF', '#FFFFFF'], // Argentina   — Azul celeste + Branco
+  mx: ['#006847', '#CE1126'], // México      — Verde + Vermelho
+  cl: ['#D52B1E', '#FFFFFF'], // Chile       — Vermelho + Branco
+  co: ['#FCD116', '#003893'], // Colômbia    — Amarelo (banda superior) + Azul
+  uy: ['#001489', '#FFFFFF'], // Uruguai     — Azul + Branco
+  pe: ['#D91023', '#FFFFFF'], // Peru        — Vermelho + Branco
+  ec: ['#FFD100', '#003580'], // Equador     — Amarelo + Azul
+  bo: ['#D52B1E', '#F4C430'], // Bolívia     — Vermelho + Amarelo
+  cr: ['#002B7F', '#C8102E'], // Costa Rica  — Azul + Vermelho
+  cu: ['#002A8F', '#CC0001'], // Cuba        — Azul + Vermelho
+  sv: ['#0F47AF', '#FFFFFF'], // El Salvador — Azul + Branco
+  gt: ['#4997D0', '#FFFFFF'], // Guatemala   — Azul celeste + Branco
+  hn: ['#0073CF', '#FFFFFF'], // Honduras    — Azul + Branco
+  ni: ['#3A75C4', '#FFFFFF'], // Nicarágua   — Azul + Branco
+  pa: ['#003893', '#D21034'], // Panamá      — Azul + Vermelho
+  py: ['#D52B1E', '#002B7F'], // Paraguai    — Vermelho + Azul
+  pr: ['#EF3340', '#002D62'], // Porto Rico  — Vermelho + Azul (triângulo)
+  do: ['#002D62', '#CF142B'], // Rep. Dom.   — Azul + Vermelho
+  ve: ['#CF142B', '#FFD700'], // Venezuela   — Vermelho + Amarelo
+  pt: ['#006600', '#FF0000'], // Portugal    — Verde escuro + Vermelho
+  es: ['#AA151B', '#F1BF00'], // Espanha     — Vermelho + Amarelo
+}
+
+// Returns the [primary, secondary] palette for a country, defaulting to Brasil.
+export function getCountryPalette(code: string): [string, string] {
+  return COUNTRY_PALETTE[code.toLowerCase()] ?? COUNTRY_PALETTE['br']
+}
+
 export function getFlagEmoji(code: string): string {
   return code
     .toUpperCase()
