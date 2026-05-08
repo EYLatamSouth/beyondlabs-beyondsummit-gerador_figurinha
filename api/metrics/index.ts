@@ -58,6 +58,19 @@ async function metricsHandler(
 
     const uniqueEmails = new Set(resources.map((p) => p.email.toLowerCase())).size
 
+    // Deduplicate started emails, keeping the earliest timestamp per email
+    const emailMap = new Map<string, string>()
+    for (const p of started) {
+      const email = p.email.toLowerCase()
+      const existing = emailMap.get(email)
+      if (!existing || p.timestamp < existing) {
+        emailMap.set(email, p.timestamp)
+      }
+    }
+    const capturedEmails = Array.from(emailMap.entries())
+      .map(([email, timestamp]) => ({ email, timestamp }))
+      .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
+
     return {
       status: 200,
       jsonBody: {
@@ -66,7 +79,8 @@ async function metricsHandler(
         totalCompleted: completed.length,
         uniqueEmails,
         byCountry,
-        participants: resources,
+        participants: completed,
+        capturedEmails,
       },
     }
   } catch (err) {

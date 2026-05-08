@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { ParticipantTable } from '@/components/admin/ParticipantTable'
+import { CapturedEmailsTable } from '@/components/admin/CapturedEmailsTable'
 
 interface CountryCount {
   code: string
@@ -14,11 +15,17 @@ interface Participant {
   timestamp: string
 }
 
+interface CapturedEmail {
+  email: string
+  timestamp: string
+}
+
 interface MetricsData {
   total: number
   uniqueEmails: number
   byCountry: CountryCount[]
   participants: Participant[]
+  capturedEmails: CapturedEmail[]
 }
 
 interface AdminDashboardProps {
@@ -167,6 +174,9 @@ export function AdminDashboard({ adminKey, onLogout }: AdminDashboardProps) {
 
             {/* Participants table */}
             <ParticipantTable participants={metrics.participants} />
+
+            {/* Captured emails table */}
+            <CapturedEmailsTable emails={metrics.capturedEmails ?? []} />
           </>
         )}
       </div>
