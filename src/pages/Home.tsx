@@ -25,6 +25,8 @@ const EMPTY_STAMP: StampData = {
   countryCode: '',
 }
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
 const LOADING_MESSAGES = [
   'Analisando sua foto...',
   'Removendo o fundo...',
@@ -43,6 +45,7 @@ function isStampComplete(data: StampData): boolean {
 
 export default function Home() {
   const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [uploadEmail, setUploadEmail] = useState('')
   const [stampData, setStampData] = useState<StampData>(EMPTY_STAMP)
   const [msgIndex, setMsgIndex] = useState(0)
   const [photoTransform, setPhotoTransform] = useState<PhotoTransform>(DEFAULT_PHOTO_TRANSFORM)
@@ -80,6 +83,7 @@ export default function Home() {
 
   function handleReset(): void {
     setPhotoFile(null)
+    setUploadEmail('')
     setStampData(EMPTY_STAMP)
     setPhotoTransform(DEFAULT_PHOTO_TRANSFORM)
     setPhotoAdjusted(false)
@@ -93,6 +97,15 @@ export default function Home() {
 
   function handlePhotoAdjustSkip(): void {
     setPhotoAdjusted(true)
+  }
+
+  function handleFileSelect(file: File): void {
+    if (!uploadEmail.trim() || !EMAIL_REGEX.test(uploadEmail.trim())) {
+      toast.error('Informe um email válido antes de enviar a foto.')
+      return
+    }
+    setStampData((prev) => ({ ...prev, email: uploadEmail.trim() }))
+    setPhotoFile(file)
   }
 
   async function handleDownload(): Promise<void> {
@@ -113,16 +126,6 @@ export default function Home() {
       cargo: stampData.role,
       area: stampData.area,
     })
-  }
-
-  function handleShare(): void {
-    const text = encodeURIComponent(
-      'Acabei de criar minha figurinha do Beyond Summit Innovation Cup 2026! ⚽🏆 #BeyondSummit2026 #EY',
-    )
-    window.open(
-      `https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fbeyondsummit.ey.com&summary=${text}`,
-      '_blank',
-    )
   }
 
   // ── Shared background layer (used in all screens) ────────────────────────
@@ -167,7 +170,35 @@ export default function Home() {
                 exclusiva do evento
               </p>
             </div>
-            <UploadZone onFileSelect={setPhotoFile} selectedFile={photoFile} />
+            {/* Email capture — required before upload */}
+            <div className="mb-4">
+              <label
+                htmlFor="upload-email"
+                className="block text-xs font-semibold font-body uppercase tracking-wider text-[#374151] mb-1.5"
+              >
+                Email corporativo
+                <span className="text-[#EF4444] ml-0.5">*</span>
+              </label>
+              <input
+                id="upload-email"
+                type="email"
+                value={uploadEmail}
+                onChange={(e) => setUploadEmail(e.target.value)}
+                placeholder="seu.email@ey.com"
+                className={[
+                  'w-full px-4 py-3 rounded-[10px] border border-[#D1D5DB] bg-white',
+                  'font-body text-base text-[#111111] placeholder:text-[#9CA3AF]',
+                  'focus:outline-none focus:border-[#1A5C2A] focus:ring-2 focus:ring-[rgba(26,92,42,0.1)]',
+                  'transition-all duration-150',
+                ].join(' ')}
+                autoComplete="email"
+              />
+              <p className="mt-1.5 flex items-start gap-1.5 text-[13px] font-body text-[#6B7280] leading-snug">
+                <span className="shrink-0 mt-px">ℹ️</span>
+                Usado apenas para fins internos de mensuração do evento
+              </p>
+            </div>
+            <UploadZone onFileSelect={handleFileSelect} selectedFile={photoFile} />
             <p className="mt-4 text-center text-sm font-body text-[#6B7280]">
               Use uma foto com fundo neutro e rosto centralizado para melhor resultado
             </p>
@@ -281,7 +312,6 @@ export default function Home() {
                 value={stampData}
                 onChange={setStampData}
                 onDownload={handleDownload}
-                onShare={handleShare}
                 onReset={handleReset}
                 isDownloadEnabled={isStampComplete(stampData)}
               />

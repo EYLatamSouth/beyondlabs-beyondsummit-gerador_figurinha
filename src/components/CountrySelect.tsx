@@ -89,7 +89,7 @@ export function CountrySelect({ value, onChange }: CountrySelectProps) {
 
       {/* Level 2 — Modal */}
       <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
-        <DialogContent className="max-w-sm rounded-2xl p-0 overflow-hidden">
+        <DialogContent className="max-w-sm rounded-2xl p-0 gap-0 overflow-hidden [&>button]:text-white [&>button]:opacity-90 [&>button]:hover:opacity-100">
           {/* Modal header */}
           <div className="bg-[#1A5C2A] px-5 py-4">
             <DialogHeader>
@@ -102,7 +102,7 @@ export function CountrySelect({ value, onChange }: CountrySelectProps) {
             </DialogHeader>
           </div>
 
-          <div className="px-5 py-4 space-y-3">
+          <div className="px-5 py-4 space-y-3 bg-white">
             {/* Search */}
             <div className="relative">
               <Search

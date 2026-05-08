@@ -243,9 +243,10 @@ export async function composeLayers(
   // transparent photo pixels naturally reveal the teal template and BS branding.
   // Rare stickers use figurinha-bg-rara.png instead of the standard template.
   const templateSrc = isRare ? '/template/figurinha-bg-rara.png' : '/template/figurinha-bg.png'
+  let templateImg: HTMLImageElement | null = null
   try {
-    const template = await loadImage(templateSrc)
-    ctx.drawImage(template, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT)
+    templateImg = await loadImage(templateSrc)
+    ctx.drawImage(templateImg, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT)
   } catch {
     console.error(`[canvas] Template not found — check public/template/${isRare ? 'figurinha-bg-rara.png' : 'figurinha-bg.png'}`)
     ctx.fillStyle = isRare ? '#C9A84C' : '#0D7B73'
@@ -259,29 +260,56 @@ export async function composeLayers(
   tintTemplate(ctx, CANVAS_WIDTH, CANVAS_HEIGHT, palettePrimary, paletteSecondary)
 
   // ── Step 2: User photo (background already removed by @imgly) ───────────────
-  // Drawn on top of the template. Transparent photo pixels reveal the teal template
-  // and branding behind/around the person — no multiply trick needed.
+  // Drawn on top of the template via an offscreen canvas so we can erase the
+  // logo zones before compositing — this lets the template logos show through.
   try {
     const photo = await loadImage(photoUrl)
-    // Base cover-scale fills the photo zone. photoTransform.scale multiplies on top.
-    // Photo is anchored to the CENTER of the photo zone, matching the editor's coords.
     const baseScale = Math.max(PHOTO_W / photo.naturalWidth, PHOTO_H / photo.naturalHeight)
     const effectiveScale = baseScale * photoTransform.scale
     const dw = photo.naturalWidth * effectiveScale
     const dh = photo.naturalHeight * effectiveScale
 
-    const zoneCenterX = PHOTO_X + PHOTO_W / 2   // 450
-    const zoneCenterY = PHOTO_Y + PHOTO_H / 2   // 455
+    const zoneCenterX = PHOTO_X + PHOTO_W / 2
+    const zoneCenterY = PHOTO_Y + PHOTO_H / 2
 
     const dx = zoneCenterX - dw / 2 + photoTransform.offsetX
     const dy = zoneCenterY - dh / 2 + photoTransform.offsetY
 
-    ctx.save()
-    ctx.beginPath()
-    ctx.rect(PHOTO_X, PHOTO_Y, PHOTO_W, PHOTO_H)
-    ctx.clip()
-    ctx.drawImage(photo, dx, dy, dw, dh)
-    ctx.restore()
+    // Draw photo to offscreen first so we can punch logo-shaped holes before
+    // compositing onto the main canvas (which already has the template).
+    const photoOff = document.createElement('canvas')
+    photoOff.width = CANVAS_WIDTH
+    photoOff.height = CANVAS_HEIGHT
+    const photoOffCtx = photoOff.getContext('2d')
+    if (photoOffCtx) {
+      photoOffCtx.save()
+      photoOffCtx.beginPath()
+      photoOffCtx.rect(PHOTO_X, PHOTO_Y, PHOTO_W, PHOTO_H)
+      photoOffCtx.clip()
+      photoOffCtx.drawImage(photo, dx, dy, dw, dh)
+      photoOffCtx.restore()
+
+      // ── Erase logo zones so the template shows through ──────────────────
+      // destination-out punches transparent holes in the photo where the logos are.
+      // The template (already drawn on the main canvas) shows through those holes.
+      //
+      // Template is 900 × 1200 px — tune these bounding boxes to tightly wrap
+      // each logo. Only the area WITHIN the photo zone (y ≥ PHOTO_Y) needs
+      // erasing; everything above is already visible on the template.
+      //
+      // Left logo  — "BEYOND SUMMIT INNOVATION CUP" text
+      const LEFT_LOGO_X = 45,  LEFT_LOGO_Y = 18,  LEFT_LOGO_W = 235, LEFT_LOGO_H = 95
+      // Right logo — BS26 trophy + circle "B"
+      const RIGHT_LOGO_X = 720, RIGHT_LOGO_Y = 20, RIGHT_LOGO_W = 360, RIGHT_LOGO_H = 255
+
+      photoOffCtx.globalCompositeOperation = 'destination-out'
+      photoOffCtx.fillStyle = 'rgba(0,0,0,1)'
+      photoOffCtx.fillRect(LEFT_LOGO_X,  LEFT_LOGO_Y,  LEFT_LOGO_W,  LEFT_LOGO_H)
+      photoOffCtx.fillRect(RIGHT_LOGO_X, RIGHT_LOGO_Y, RIGHT_LOGO_W, RIGHT_LOGO_H)
+      photoOffCtx.globalCompositeOperation = 'source-over'
+
+      ctx.drawImage(photoOff, 0, 0)
+    }
   } catch {
     console.error('[canvas] Failed to draw user photo')
   }

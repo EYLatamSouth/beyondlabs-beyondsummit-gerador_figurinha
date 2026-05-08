@@ -1,4 +1,4 @@
-import { Download, Share2, RotateCcw } from 'lucide-react'
+import { Download, RotateCcw } from 'lucide-react'
 import type { StampData } from '@/types/stamp'
 import { CountrySelect } from '@/components/CountrySelect'
 
@@ -6,7 +6,6 @@ interface StampFormProps {
   value: StampData
   onChange: (data: StampData) => void
   onDownload: () => void
-  onShare?: () => void
   onReset?: () => void
   isDownloadEnabled: boolean
 }
@@ -39,7 +38,6 @@ export function StampForm({
   value,
   onChange,
   onDownload,
-  onShare,
   onReset,
   isDownloadEnabled,
 }: StampFormProps) {
@@ -96,23 +94,6 @@ export function StampForm({
         />
       </div>
 
-      {/* Email */}
-      <div>
-        <FieldLabel htmlFor="stamp-email">Email</FieldLabel>
-        <input
-          id="stamp-email"
-          type="email"
-          value={value.email}
-          onChange={(e) => onChange({ ...value, email: e.target.value })}
-          placeholder="seu.email@ey.com"
-          className={inputBase}
-        />
-        <p className="mt-1.5 flex items-start gap-1.5 text-[13px] font-body text-[#6B7280] leading-snug">
-          <span className="shrink-0 mt-px">ℹ️</span>
-          Seu email será usado apenas para fins internos de mensuração do evento
-        </p>
-      </div>
-
       {/* País */}
       <div>
         <FieldLabel htmlFor="stamp-country">País</FieldLabel>
@@ -149,15 +130,7 @@ export function StampForm({
         </div>
 
         {/* Secondary row */}
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => onShare?.()}
-            className="flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-[8px] border-2 border-[#1A5C2A] text-[#1A5C2A] font-display font-bold text-sm tracking-wider uppercase hover:bg-[#F0FDF4] transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(26,92,42,0.4)]"
-          >
-            <Share2 size={14} strokeWidth={2.5} />
-            LinkedIn
-          </button>
+        <div className="flex justify-center">
           <button
             type="button"
             onClick={() => onReset?.()}

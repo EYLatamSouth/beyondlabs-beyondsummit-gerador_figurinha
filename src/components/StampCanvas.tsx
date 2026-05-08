@@ -1,8 +1,7 @@
-import React from 'react'
 import { Loader2 } from 'lucide-react'
 
 interface StampCanvasProps {
-  canvasRef: React.RefObject<HTMLCanvasElement>
+  canvasRef: (el: HTMLCanvasElement | null) => void
   isComposing: boolean
   photoUrl: string | null
   isRare?: boolean

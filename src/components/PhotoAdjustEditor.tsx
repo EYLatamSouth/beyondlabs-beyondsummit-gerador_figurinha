@@ -204,6 +204,7 @@ export function PhotoAdjustEditor({ photoUrl, onConfirm, onSkip }: PhotoAdjustEd
       top: `${top}px`,
       width: `${displayW}px`,
       height: `${displayH}px`,
+      maxWidth: 'none',  // override Tailwind preflight max-width: 100% which would constrain width and cause thinning on zoom
       cursor: 'grab',
       userSelect: 'none',
       touchAction: 'none',
