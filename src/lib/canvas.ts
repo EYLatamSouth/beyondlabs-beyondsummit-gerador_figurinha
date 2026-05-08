@@ -128,7 +128,7 @@ async function loadFlagSvg(countryCode: string): Promise<HTMLImageElement | null
 // Source colours in the BS template that identify the "Brasil" palette:
 const SOURCE_GREEN:  [number, number, number] = [68,  152,  69]  // #449845
 const SOURCE_YELLOW: [number, number, number] = [250, 230,  77]  // #FAE64D
-const TINT_TOLERANCE = 50 // Euclidean RGB distance threshold
+const TINT_TOLERANCE = 35 // Euclidean RGB distance threshold
 
 function hexToRgb(hex: string): [number, number, number] {
   const h = hex.replace('#', '')
