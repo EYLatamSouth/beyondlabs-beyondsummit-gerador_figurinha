@@ -1,4 +1,5 @@
 import { Loader2 } from 'lucide-react'
+import { RareStampEffects } from '@/components/RareStampEffects'
 
 interface StampCanvasProps {
   canvasRef: (el: HTMLCanvasElement | null) => void
@@ -10,19 +11,29 @@ interface StampCanvasProps {
 export function StampCanvas({ canvasRef, isComposing, photoUrl, isRare = false }: StampCanvasProps) {
   return (
     <div className="flex flex-col items-center w-full">
-        {/* Rare sticker badge — outside the sticker, centered above */}
+      {/* Rare sticker badge — animated bounce when rare */}
       {isRare && (
         <div className="flex justify-center mb-2">
-          <div className="flex items-center gap-1.5 bg-[#C9A84C] text-white text-xs font-bold font-display uppercase tracking-wide px-4 py-1.5 rounded-full shadow-md">
+          <div className="flex items-center gap-1.5 bg-[#C9A84C] text-white text-xs font-bold font-display uppercase tracking-wide px-4 py-1.5 rounded-full shadow-md animate-rare-badge-bounce">
             ⭐ Figurinha Rara!
           </div>
         </div>
       )}
 
-      {/* Card wrapper — maintains 3:4 aspect ratio */}
-      <div className="relative w-full rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.18)] bg-white">
-        {/* 3:4 aspect-ratio enforcer */}
-        <div className="w-full" style={{ aspectRatio: '3 / 4' }}>
+      {/* Card wrapper — maintains 3:4 aspect ratio + rare glow */}
+      <div
+        className={[
+          'relative w-full rounded-2xl overflow-visible bg-white',
+          isRare
+            ? 'shadow-[0_8px_32px_rgba(0,0,0,0.18)] animate-rare-glow-pulse'
+            : 'shadow-[0_8px_32px_rgba(0,0,0,0.18)]',
+        ].join(' ')}
+      >
+        {/* Sparkles + shimmer sit here (overflow:visible on parent allows sparkles to bleed out) */}
+        <RareStampEffects visible={isRare} />
+
+        {/* Inner clip for the canvas/content — separate div keeps overflow:hidden for shimmer */}
+        <div className="w-full rounded-2xl overflow-hidden" style={{ aspectRatio: '3 / 4' }}>
           {photoUrl ? (
             /* Real canvas — CSS-scaled to fill container */
             <canvas
@@ -46,7 +57,7 @@ export function StampCanvas({ canvasRef, isComposing, photoUrl, isRare = false }
 
         {/* Composing overlay */}
         {isComposing && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-[2px]">
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-[2px] rounded-2xl">
             <Loader2 size={32} className="animate-spin text-[#3D9A52]" />
             <p className="font-body text-white text-sm font-medium mt-2">
               Renderizando...

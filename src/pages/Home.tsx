@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import confetti from 'canvas-confetti'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Toaster } from '@/components/ui/sonner'
@@ -108,9 +109,40 @@ export default function Home() {
     setPhotoFile(file)
   }
 
+  function fireRareConfetti(): void {
+    confetti({
+      particleCount: 120,
+      spread: 90,
+      origin: { y: 0.6 },
+      colors: ['#C9A84C', '#F5C518', '#FFFFFF', '#FFD700', '#3D9A52'],
+      scalar: 1.1,
+      gravity: 0.9,
+      decay: 0.92,
+    })
+    setTimeout(() => {
+      confetti({
+        particleCount: 60,
+        spread: 120,
+        origin: { x: 0.2, y: 0.65 },
+        colors: ['#C9A84C', '#F5C518', '#FFFFFF'],
+        scalar: 0.9,
+        gravity: 1.1,
+      })
+      confetti({
+        particleCount: 60,
+        spread: 120,
+        origin: { x: 0.8, y: 0.65 },
+        colors: ['#C9A84C', '#F5C518', '#FFFFFF'],
+        scalar: 0.9,
+        gravity: 1.1,
+      })
+    }, 200)
+  }
+
   async function handleDownload(): Promise<void> {
     const rare = await downloadPNG()
     if (rare) {
+      fireRareConfetti()
       toast.success('⭐ Você ganhou uma figurinha rara!')
     } else {
       toast.success('Figurinha baixada com sucesso!')
@@ -294,7 +326,11 @@ export default function Home() {
               {import.meta.env.DEV && (
                 <button
                   type="button"
-                  onClick={() => setForceRare((v) => !v)}
+                  onClick={() => {
+                    const next = !forceRare
+                    setForceRare(next)
+                    if (next) fireRareConfetti()
+                  }}
                   className={`mt-2 w-full flex items-center justify-center gap-1.5 py-2 px-4 rounded-[8px] border font-body text-xs font-medium transition-all duration-150 ${
                     forceRare
                       ? 'bg-[#C9A84C] border-[#C9A84C] text-white'
