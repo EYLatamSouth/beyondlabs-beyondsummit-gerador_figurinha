@@ -26,6 +26,7 @@ export interface ParticipantRecord {
   timestamp: string; // ISO 8601
   cargo: string;
   area: string;
+  status?: 'started' | 'completed';
 }
 
 export interface Country {

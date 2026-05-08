@@ -105,8 +105,20 @@ export default function Home() {
       toast.error('Informe um email válido antes de enviar a foto.')
       return
     }
-    setStampData((prev) => ({ ...prev, email: uploadEmail.trim() }))
+    const email = uploadEmail.trim()
+    setStampData((prev) => ({ ...prev, email }))
     setPhotoFile(file)
+    // Fire-and-forget: register email as soon as the user starts the flow
+    registerParticipant({
+      email,
+      timestamp: new Date().toISOString(),
+      status: 'started',
+      nome: '',
+      pais: '',
+      paisCode: '',
+      cargo: '',
+      area: '',
+    })
   }
 
   function fireRareConfetti(): void {
@@ -157,6 +169,7 @@ export default function Home() {
       timestamp: new Date().toISOString(),
       cargo: stampData.role,
       area: stampData.area,
+      status: 'completed',
     })
   }
 

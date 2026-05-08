@@ -16,6 +16,7 @@ interface Participant {
 
 interface MetricsData {
   total: number
+  uniqueEmails: number
   byCountry: CountryCount[]
   participants: Participant[]
 }
@@ -109,14 +110,22 @@ export function AdminDashboard({ adminKey, onLogout }: AdminDashboardProps) {
 
         {metrics && (
           <>
-            {/* KPI card */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* KPI cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="p-6 rounded-[12px] border border-[#E5E7EB] bg-[#F9FAFB]">
                 <p className="font-body text-xs font-semibold uppercase tracking-wider text-[#6B7280]">
                   Total de Figurinhas Geradas
                 </p>
                 <p className="font-display text-5xl font-extrabold text-[#1A5C2A] mt-1">
                   {metrics.total.toLocaleString('pt-BR')}
+                </p>
+              </div>
+              <div className="p-6 rounded-[12px] border border-[#E5E7EB] bg-[#F9FAFB]">
+                <p className="font-body text-xs font-semibold uppercase tracking-wider text-[#6B7280]">
+                  E-mails Únicos Capturados
+                </p>
+                <p className="font-display text-5xl font-extrabold text-[#1A5C2A] mt-1">
+                  {metrics.uniqueEmails.toLocaleString('pt-BR')}
                 </p>
               </div>
               <div className="p-6 rounded-[12px] border border-[#E5E7EB] bg-[#F9FAFB]">

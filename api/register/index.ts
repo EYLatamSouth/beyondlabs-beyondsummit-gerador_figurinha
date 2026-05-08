@@ -19,6 +19,7 @@ interface RegisterBody {
   timestamp?: unknown
   cargo?: unknown
   area?: unknown
+  status?: unknown
 }
 
 async function registerHandler(
@@ -32,25 +33,37 @@ async function registerHandler(
     return { status: 400, jsonBody: { error: 'Invalid JSON body' } }
   }
 
-  const { nome, email, pais, paisCode, timestamp, cargo, area } = body
+  const { nome, email, pais, paisCode, timestamp, cargo, area, status } = body
 
-  if (
-    typeof nome !== 'string' || !nome.trim() ||
-    typeof email !== 'string' || !email.trim() ||
-    typeof pais !== 'string' || !pais.trim() ||
-    typeof paisCode !== 'string' || !paisCode.trim() ||
-    typeof timestamp !== 'string' || !timestamp.trim()
-  ) {
+  const isStarted = status === 'started'
+
+  if (typeof email !== 'string' || !email.trim()) {
     return { status: 400, jsonBody: { error: 'Missing required fields' } }
+  }
+
+  if (typeof timestamp !== 'string' || !timestamp.trim()) {
+    return { status: 400, jsonBody: { error: 'Missing required fields' } }
+  }
+
+  if (!isStarted) {
+    if (
+      typeof nome !== 'string' || !nome.trim() ||
+      typeof pais !== 'string' || !pais.trim() ||
+      typeof paisCode !== 'string' || !paisCode.trim()
+    ) {
+      return { status: 400, jsonBody: { error: 'Missing required fields' } }
+    }
   }
 
   if (!isValidEmail(email)) {
     return { status: 400, jsonBody: { error: 'Invalid email format' } }
   }
 
-  const normalizedCode = paisCode.toLowerCase()
-  if (!SUPPORTED_CODES.has(normalizedCode)) {
-    return { status: 400, jsonBody: { error: 'Country not supported' } }
+  if (!isStarted) {
+    const normalizedCode = (paisCode as string).toLowerCase()
+    if (!SUPPORTED_CODES.has(normalizedCode)) {
+      return { status: 400, jsonBody: { error: 'Country not supported' } }
+    }
   }
 
   const connectionString = process.env.COSMOS_CONNECTION_STRING
@@ -64,16 +77,18 @@ async function registerHandler(
     const container = client.database('beyondsummit').container('participants')
 
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+    const normalizedCode = isStarted ? '' : (paisCode as string).toLowerCase()
 
     await container.items.create({
       id,
-      nome: nome.trim(),
+      nome: typeof nome === 'string' ? nome.trim() : '',
       email: email.trim().toLowerCase(),
-      pais: pais.trim(),
+      pais: typeof pais === 'string' ? pais.trim() : '',
       paisCode: normalizedCode,
       timestamp,
       cargo: typeof cargo === 'string' ? cargo.trim() : '',
       area: typeof area === 'string' ? area.trim() : '',
+      status: isStarted ? 'started' : 'completed',
     })
 
     return { status: 200, jsonBody: { ok: true, id } }

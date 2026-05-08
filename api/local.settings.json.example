@@ -1,0 +1,9 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "COSMOS_CONNECTION_STRING": "AccountEndpoint=https://<seu-cosmos>.documents.azure.com:443/;AccountKey=<chave>;",
+    "ADMIN_KEY": "<senha-forte-para-o-painel-admin>"
+  }
+}

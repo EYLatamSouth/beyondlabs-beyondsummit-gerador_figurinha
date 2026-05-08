@@ -7,6 +7,7 @@ interface ParticipantDoc {
   pais: string
   paisCode: string
   timestamp: string
+  status?: string
 }
 
 async function metricsHandler(
@@ -35,11 +36,14 @@ async function metricsHandler(
     const container = client.database('beyondsummit').container('participants')
 
     const { resources } = await container.items
-      .query<ParticipantDoc>('SELECT c.nome, c.email, c.pais, c.paisCode, c.timestamp FROM c ORDER BY c.timestamp DESC')
+      .query<ParticipantDoc>('SELECT c.nome, c.email, c.pais, c.paisCode, c.timestamp, c.status FROM c ORDER BY c.timestamp DESC')
       .fetchAll()
 
+    const completed = resources.filter((p) => p.status !== 'started')
+    const started = resources.filter((p) => p.status === 'started')
+
     const countMap = new Map<string, { name: string; count: number }>()
-    for (const p of resources) {
+    for (const p of completed) {
       const entry = countMap.get(p.paisCode)
       if (entry) {
         entry.count += 1
@@ -52,10 +56,15 @@ async function metricsHandler(
       .map(([code, { name, count }]) => ({ code, name, count }))
       .sort((a, b) => b.count - a.count)
 
+    const uniqueEmails = new Set(resources.map((p) => p.email.toLowerCase())).size
+
     return {
       status: 200,
       jsonBody: {
-        total: resources.length,
+        total: completed.length,
+        totalStarted: started.length,
+        totalCompleted: completed.length,
+        uniqueEmails,
         byCountry,
         participants: resources,
       },
