@@ -220,7 +220,7 @@ export async function composeLayers(
   canvas.width = CANVAS_WIDTH
   canvas.height = CANVAS_HEIGHT
 
-  const ctx = canvas.getContext('2d')
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })
   if (!ctx) throw new Error('Could not get 2D context')
 
   ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT)

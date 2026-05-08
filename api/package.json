@@ -2,7 +2,7 @@
   "name": "gerador-figurinha-api",
   "version": "1.0.0",
   "description": "Azure Functions for Beyond Summit Figurinha Generator",
-  "main": "dist/index.js",
+  "main": "dist/**/*.js",
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch",

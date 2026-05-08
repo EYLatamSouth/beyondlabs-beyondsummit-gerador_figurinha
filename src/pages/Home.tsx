@@ -322,9 +322,8 @@ export default function Home() {
               >
                 ✦ Reajustar posição da foto
               </button>
-              {/* Force-rare toggle — MVP test button (dev only) */}
-              {import.meta.env.DEV && (
-                <button
+              {/* Force-rare toggle — test button, remove after validation */}
+              <button
                   type="button"
                   onClick={() => {
                     const next = !forceRare
@@ -336,10 +335,9 @@ export default function Home() {
                       ? 'bg-[#C9A84C] border-[#C9A84C] text-white'
                       : 'border-[#C9A84C] text-[#C9A84C] hover:bg-[#FBF5E6]'
                   }`}
-                >
+                 >
                   ⭐ {forceRare ? 'Figurinha rara ativada' : 'Ver figurinha rara (teste)'}
                 </button>
-              )}
             </div>
 
             {/* Form */}

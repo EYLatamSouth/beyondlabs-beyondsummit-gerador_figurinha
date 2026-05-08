@@ -113,7 +113,7 @@ export function PhotoAdjustEditor({ photoUrl, onConfirm, onSkip }: PhotoAdjustEd
   }, [handleMouseMove, handleMouseUp])
 
   // ── Drag (touch / pinch) ────────────────────────────────────────────────────
-  const getTouchDistance = (touches: React.TouchList) =>
+  const getTouchDistance = (touches: { [index: number]: { clientX: number; clientY: number } }) =>
     Math.hypot(
       touches[0].clientX - touches[1].clientX,
       touches[0].clientY - touches[1].clientY,
@@ -139,41 +139,54 @@ export function PhotoAdjustEditor({ photoUrl, onConfirm, onSkip }: PhotoAdjustEd
     }
   }, [transform.offsetX, transform.offsetY, transform.scale])
 
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    e.preventDefault()
-    const ratio = displayRatioRef.current
-
-    if (e.touches.length === 1 && dragRef.current.active) {
-      const dx = (e.touches[0].clientX - dragRef.current.startX) / ratio
-      const dy = (e.touches[0].clientY - dragRef.current.startY) / ratio
-      setTransform((prev) => ({
-        ...prev,
-        offsetX: dragRef.current.startOffsetX + dx,
-        offsetY: dragRef.current.startOffsetY + dy,
-      }))
-    } else if (e.touches.length === 2 && pinchRef.current.active) {
-      const dist = getTouchDistance(e.touches)
-      const rawScale = pinchRef.current.initialScale * (dist / pinchRef.current.initialDistance)
-      setTransform((prev) => ({
-        ...prev,
-        scale: Math.min(MAX_SCALE, Math.max(MIN_SCALE, rawScale)),
-      }))
-    }
-  }, [])
-
   const handleTouchEnd = useCallback(() => {
     dragRef.current.active = false
     pinchRef.current.active = false
   }, [])
 
-  // ── Wheel zoom ──────────────────────────────────────────────────────────────
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault()
-    const delta = e.deltaY > 0 ? -SCALE_STEP : SCALE_STEP
-    setTransform((prev) => ({
-      ...prev,
-      scale: Math.min(MAX_SCALE, Math.max(MIN_SCALE, prev.scale + delta)),
-    }))
+  // touchmove and wheel must be non-passive to allow preventDefault() —
+  // React JSX handlers are passive by default in modern browsers, so we
+  // attach them directly to the DOM element via useEffect.
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+
+    function onTouchMove(e: TouchEvent) {
+      e.preventDefault()
+      const ratio = displayRatioRef.current
+      if (e.touches.length === 1 && dragRef.current.active) {
+        const dx = (e.touches[0].clientX - dragRef.current.startX) / ratio
+        const dy = (e.touches[0].clientY - dragRef.current.startY) / ratio
+        setTransform((prev) => ({
+          ...prev,
+          offsetX: dragRef.current.startOffsetX + dx,
+          offsetY: dragRef.current.startOffsetY + dy,
+        }))
+      } else if (e.touches.length === 2 && pinchRef.current.active) {
+        const dist = getTouchDistance(e.touches)
+        const rawScale = pinchRef.current.initialScale * (dist / pinchRef.current.initialDistance)
+        setTransform((prev) => ({
+          ...prev,
+          scale: Math.min(MAX_SCALE, Math.max(MIN_SCALE, rawScale)),
+        }))
+      }
+    }
+
+    function onWheel(e: WheelEvent) {
+      e.preventDefault()
+      const delta = e.deltaY > 0 ? -SCALE_STEP : SCALE_STEP
+      setTransform((prev) => ({
+        ...prev,
+        scale: Math.min(MAX_SCALE, Math.max(MIN_SCALE, prev.scale + delta)),
+      }))
+    }
+
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => {
+      el.removeEventListener('touchmove', onTouchMove)
+      el.removeEventListener('wheel', onWheel)
+    }
   }, [])
 
   // ── Button zoom ─────────────────────────────────────────────────────────────
@@ -235,9 +248,7 @@ export function PhotoAdjustEditor({ photoUrl, onConfirm, onSkip }: PhotoAdjustEd
           style={{ aspectRatio: '3 / 4', cursor: 'grab' }}
           onMouseDown={handleMouseDown}
           onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
-          onWheel={handleWheel}
         >
           {/* Template background */}
           <img
