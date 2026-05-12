@@ -20,6 +20,7 @@ interface RegisterBody {
   cargo?: unknown
   area?: unknown
   status?: unknown
+  quizResult?: unknown
 }
 
 async function registerHandler(
@@ -33,7 +34,7 @@ async function registerHandler(
     return { status: 400, jsonBody: { error: 'Invalid JSON body' } }
   }
 
-  const { nome, email, pais, paisCode, timestamp, cargo, area, status } = body
+  const { nome, email, pais, paisCode, timestamp, cargo, area, status, quizResult } = body
 
   const isStarted = status === 'started'
 
@@ -89,6 +90,7 @@ async function registerHandler(
       cargo: typeof cargo === 'string' ? cargo.trim() : '',
       area: typeof area === 'string' ? area.trim() : '',
       status: isStarted ? 'started' : 'completed',
+      quizResult: typeof quizResult === 'string' ? quizResult.trim() : '',
     })
 
     return { status: 200, jsonBody: { ok: true, id } }

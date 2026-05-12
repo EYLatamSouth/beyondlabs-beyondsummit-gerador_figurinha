@@ -1,21 +1,24 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import confetti from 'canvas-confetti'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Toaster } from '@/components/ui/sonner'
-import { UploadZone } from '@/components/UploadZone'
 import { StampForm } from '@/components/StampForm'
 import { StampCanvas } from '@/components/StampCanvas'
 import { PhotoAdjustEditor } from '@/components/PhotoAdjustEditor'
 import { Header } from '@/components/Header'
 import { DecorativeCorners } from '@/components/DecorativeCorners'
 import { AppBackground } from '@/components/AppBackground'
+import { QuizQuestion } from '@/components/quiz/QuizQuestion'
+import { QuizResultCard } from '@/components/quiz/QuizResultCard'
 import { useBackgroundRemoval } from '@/hooks/useBackgroundRemoval'
 import { useStampCanvas } from '@/hooks/useStampCanvas'
 import { registerParticipant } from '@/lib/analytics'
 import { getCountryByCode } from '@/lib/countries'
+import { QUIZ_QUESTIONS, TIEBREAKER_QUESTION, QUIZ_RESULTS, calculateResult } from '@/lib/quiz'
 import type { StampData, PhotoTransform } from '@/types/stamp'
 import { DEFAULT_PHOTO_TRANSFORM } from '@/types/stamp'
+import type { QuizAnswers, QuizLetter, QuizResultData } from '@/types/quiz'
 
 
 const EMPTY_STAMP: StampData = {
@@ -26,7 +29,6 @@ const EMPTY_STAMP: StampData = {
   countryCode: '',
 }
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const LOADING_MESSAGES = [
   'Analisando sua foto...',
@@ -37,8 +39,6 @@ const LOADING_MESSAGES = [
 function isStampComplete(data: StampData): boolean {
   return (
     data.name.trim() !== '' &&
-    data.role.trim() !== '' &&
-    data.area.trim() !== '' &&
     data.email.trim() !== '' &&
     data.countryCode !== ''
   )
@@ -53,6 +53,15 @@ export default function Home() {
   const [photoAdjusted, setPhotoAdjusted] = useState(false)
   const [forceRare, setForceRare] = useState(false)
 
+  const replacePhotoInputRef = useRef<HTMLInputElement>(null)
+
+  // Quiz state
+  const [quizStarted, setQuizStarted] = useState(false)
+  const [quizQuestionIndex, setQuizQuestionIndex] = useState(0)
+  const [quizAnswers, setQuizAnswers] = useState<QuizAnswers>({})
+  const [needsTiebreaker, setNeedsTiebreaker] = useState(false)
+  const [quizResult, setQuizResult] = useState<QuizResultData | null>(null)
+
   const {
     status,
     processedUrl: processedPhotoUrl,
@@ -63,7 +72,10 @@ export default function Home() {
   const { canvasRef, isComposing, isRare, downloadPNG } = useStampCanvas(stampData, processedPhotoUrl, photoTransform, forceRare)
 
   const step =
-    !photoFile || status === 'idle' ? 'upload'
+    !quizStarted ? 'landing'
+    : quizResult === null && !needsTiebreaker && quizQuestionIndex < QUIZ_QUESTIONS.length ? 'quiz'
+    : quizResult === null && needsTiebreaker ? 'tiebreaker'
+    : quizResult !== null && (!photoFile || status === 'idle') ? 'quiz-result'
     : status === 'processing' ? 'processing'
     : status === 'done' && !photoAdjusted ? 'photo-adjust'
     : 'editor'
@@ -73,6 +85,16 @@ export default function Home() {
       processFile(photoFile)
     }
   }, [photoFile]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (quizResult) {
+      setStampData((prev) => ({
+        ...prev,
+        role: quizResult.title,
+        area: quizResult.area,
+      }))
+    }
+  }, [quizResult])
 
   useEffect(() => {
     if (status !== 'processing') return
@@ -88,6 +110,11 @@ export default function Home() {
     setStampData(EMPTY_STAMP)
     setPhotoTransform(DEFAULT_PHOTO_TRANSFORM)
     setPhotoAdjusted(false)
+    setQuizStarted(false)
+    setQuizQuestionIndex(0)
+    setQuizAnswers({})
+    setNeedsTiebreaker(false)
+    setQuizResult(null)
     reset()
   }
 
@@ -100,14 +127,15 @@ export default function Home() {
     setPhotoAdjusted(true)
   }
 
-  function handleFileSelect(file: File): void {
-    if (!uploadEmail.trim() || !EMAIL_REGEX.test(uploadEmail.trim())) {
-      toast.error('Informe um email válido antes de enviar a foto.')
+  function handleStartQuiz(): void {
+    const prefix = uploadEmail.trim()
+    if (!prefix || /\s/.test(prefix)) {
+      toast.error('Informe seu email corporativo antes de começar o quiz.')
       return
     }
-    const email = uploadEmail.trim()
+    const email = prefix + '.ey.com'
     setStampData((prev) => ({ ...prev, email }))
-    setPhotoFile(file)
+    setQuizStarted(true)
     // Fire-and-forget: register email as soon as the user starts the flow
     registerParticipant({
       email,
@@ -119,6 +147,85 @@ export default function Home() {
       cargo: '',
       area: '',
     })
+  }
+
+  function handleQuizAnswer(letter: QuizLetter): void {
+    if (needsTiebreaker) {
+      // Tiebreaker answer resolves the result directly
+      setQuizResult(QUIZ_RESULTS[letter])
+      setNeedsTiebreaker(false)
+      fireQuizConfetti()
+      return
+    }
+
+    const question = QUIZ_QUESTIONS[quizQuestionIndex]
+    const updatedAnswers: QuizAnswers = { ...quizAnswers, [question.id]: letter }
+    setQuizAnswers(updatedAnswers)
+
+    const nextIndex = quizQuestionIndex + 1
+
+    if (nextIndex < QUIZ_QUESTIONS.length) {
+      setQuizQuestionIndex(nextIndex)
+      return
+    }
+
+    // All 5 questions answered — calculate result
+    const winner = calculateResult(updatedAnswers)
+    if (winner) {
+      setQuizResult(QUIZ_RESULTS[winner])
+      fireQuizConfetti()
+    } else {
+      setNeedsTiebreaker(true)
+    }
+  }
+
+  function fireQuizConfetti(): void {
+    confetti({
+      particleCount: 100,
+      spread: 80,
+      origin: { y: 0.5 },
+      colors: ['#1A5C2A', '#3D9A52', '#C9A84C', '#F5C518', '#FFFFFF'],
+      scalar: 1.0,
+      gravity: 0.9,
+      decay: 0.93,
+    })
+    setTimeout(() => {
+      confetti({
+        particleCount: 50,
+        spread: 110,
+        origin: { x: 0.15, y: 0.55 },
+        colors: ['#C9A84C', '#F5C518', '#FFFFFF'],
+        scalar: 0.85,
+      })
+      confetti({
+        particleCount: 50,
+        spread: 110,
+        origin: { x: 0.85, y: 0.55 },
+        colors: ['#C9A84C', '#F5C518', '#FFFFFF'],
+        scalar: 0.85,
+      })
+    }, 250)
+  }
+
+  function handleFileSelect(file: File): void {
+    setPhotoFile(file)
+  }
+
+  function handleReplacePhoto(): void {
+    // Clear current file so the useEffect re-fires even if same file is selected again
+    setPhotoFile(null)
+    setPhotoAdjusted(false)
+    replacePhotoInputRef.current?.click()
+  }
+
+  function handleReplaceFileSelected(e: React.ChangeEvent<HTMLInputElement>): void {
+    const file = e.target.files?.[0]
+    if (!file) return
+    // Reset value so the same file can be re-selected if needed
+    e.target.value = ''
+    setPhotoAdjusted(false)
+    setPhotoTransform(DEFAULT_PHOTO_TRANSFORM)
+    setPhotoFile(file)
   }
 
   function fireRareConfetti(): void {
@@ -170,6 +277,7 @@ export default function Home() {
       cargo: stampData.role,
       area: stampData.area,
       status: 'completed',
+      quizResult: quizResult?.fullLabel ?? '',
     })
   }
 
@@ -178,18 +286,26 @@ export default function Home() {
     <>
       <AppBackground />
       <DecorativeCorners />
+      {/* Hidden file input for photo replacement (reused across screens) */}
+      <input
+        ref={replacePhotoInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleReplaceFileSelected}
+      />
     </>
   )
 
-  // ── Tela 1: Upload ────────────────────────────────────────────────────────
-  if (step === 'upload') {
+  // ── Tela 1: Landing (email + botão começar quiz) ──────────────────────────
+  if (step === 'landing') {
     return (
       <>
         <Toaster position="top-right" />
         {sharedBg}
         <Header />
         <div
-          key="screen-upload"
+          key="screen-landing"
           className="relative z-10 min-h-screen flex flex-col items-center justify-center p-8 pt-24 md:pt-28 animate-fade-slide-up"
         >
           <div className="w-full max-w-lg">
@@ -209,14 +325,20 @@ export default function Home() {
 
               {/* Hero call-to-action */}
               <h1 className="font-display font-extrabold text-4xl md:text-5xl text-[#111111] uppercase tracking-wide leading-none">
-                Crie sua figurinha
+                Complete o Quiz e ganhe
               </h1>
               <p className="font-display font-bold text-xl md:text-2xl text-[#2D7A40] uppercase tracking-widest mt-1 leading-tight">
-                exclusiva do evento
+                sua figurinha exclusiva do evento
+              </p>
+              <p className="mt-4 text-sm font-body text-[#374151] leading-relaxed">
+                Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
+                incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud
+                exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
               </p>
             </div>
-            {/* Email capture — required before upload */}
-            <div className="mb-4">
+
+            {/* Email field */}
+            <div className="mb-6">
               <label
                 htmlFor="upload-email"
                 className="block text-xs font-semibold font-body uppercase tracking-wider text-[#374151] mb-1.5"
@@ -224,28 +346,37 @@ export default function Home() {
                 Email corporativo
                 <span className="text-[#EF4444] ml-0.5">*</span>
               </label>
-              <input
-                id="upload-email"
-                type="email"
-                value={uploadEmail}
-                onChange={(e) => setUploadEmail(e.target.value)}
-                placeholder="seu.email@ey.com"
-                className={[
-                  'w-full px-4 py-3 rounded-[10px] border border-[#D1D5DB] bg-white',
-                  'font-body text-base text-[#111111] placeholder:text-[#9CA3AF]',
-                  'focus:outline-none focus:border-[#1A5C2A] focus:ring-2 focus:ring-[rgba(26,92,42,0.1)]',
-                  'transition-all duration-150',
-                ].join(' ')}
-                autoComplete="email"
-              />
+              <div className="flex items-center w-full rounded-[10px] border border-[#D1D5DB] bg-white focus-within:border-[#1A5C2A] focus-within:ring-2 focus-within:ring-[rgba(26,92,42,0.1)] transition-all duration-150 overflow-hidden">
+                <input
+                  id="upload-email"
+                  type="text"
+                  value={uploadEmail}
+                  onChange={(e) => setUploadEmail(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleStartQuiz() }}
+                  placeholder="nome.sobrenome@br"
+                  className="flex-1 min-w-0 px-4 py-3 bg-transparent font-body text-base text-[#111111] placeholder:text-[#9CA3AF] focus:outline-none"
+                  autoComplete="off"
+                />
+                <span className="pr-4 font-body text-base text-[#6B7280] select-none whitespace-nowrap">.ey.com</span>
+              </div>
               <p className="mt-1.5 flex items-start gap-1.5 text-[13px] font-body text-[#6B7280] leading-snug">
                 <span className="shrink-0 mt-px">ℹ️</span>
                 Usado apenas para fins internos de mensuração do evento
               </p>
             </div>
-            <UploadZone onFileSelect={handleFileSelect} selectedFile={photoFile} />
-            <p className="mt-4 text-center text-sm font-body text-[#6B7280]">
-              Use uma foto com fundo neutro e rosto centralizado para melhor resultado
+
+            {/* Start quiz button */}
+            <button
+              type="button"
+              onClick={handleStartQuiz}
+              className="w-full flex items-center justify-center gap-3 py-4 px-6 rounded-2xl bg-[#1A5C2A] text-white font-display font-bold text-xl uppercase tracking-wide transition-all duration-150 hover:bg-[#144a22] hover:shadow-lg active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A5C2A] focus-visible:ring-offset-2"
+            >
+              <span className="text-2xl">⚽</span>
+              Começar Quiz
+            </button>
+
+            <p className="mt-4 text-center text-xs font-body text-[#9CA3AF]">
+              5 perguntas rápidas para descobrir qual é a sua posição em campo
             </p>
           </div>
         </div>
@@ -253,7 +384,75 @@ export default function Home() {
     )
   }
 
-  // ── Tela 2: Loading ───────────────────────────────────────────────────────
+  // ── Tela 2: Quiz (perguntas) ──────────────────────────────────────────────
+  if (step === 'quiz') {
+    return (
+      <>
+        <Toaster position="top-right" />
+        {sharedBg}
+        <Header />
+        <div
+          key={`screen-quiz-${quizQuestionIndex}`}
+          className="relative z-10 min-h-screen flex flex-col items-center justify-center p-6 pt-24 md:pt-28"
+        >
+          <QuizQuestion
+            question={QUIZ_QUESTIONS[quizQuestionIndex]}
+            totalQuestions={QUIZ_QUESTIONS.length}
+            onAnswer={handleQuizAnswer}
+          />
+        </div>
+      </>
+    )
+  }
+
+  // ── Tela 3: Desempate ─────────────────────────────────────────────────────
+  if (step === 'tiebreaker') {
+    return (
+      <>
+        <Toaster position="top-right" />
+        {sharedBg}
+        <Header />
+        <div
+          key="screen-tiebreaker"
+          className="relative z-10 min-h-screen flex flex-col items-center justify-center p-6 pt-24 md:pt-28"
+        >
+          <div className="w-full max-w-lg mx-auto mb-4 text-center">
+            <span className="inline-block text-xs font-bold font-body uppercase tracking-[0.2em] px-3 py-1 rounded-full bg-[#FBF5E6] text-[#C9A84C]">
+              🥅 É Pênalti! Hora do desempate
+            </span>
+          </div>
+          <QuizQuestion
+            question={TIEBREAKER_QUESTION}
+            totalQuestions={QUIZ_QUESTIONS.length}
+            onAnswer={handleQuizAnswer}
+          />
+        </div>
+      </>
+    )
+  }
+
+  // ── Tela 4: Resultado do Quiz + Upload ────────────────────────────────────
+  if (step === 'quiz-result' && quizResult) {
+    return (
+      <>
+        <Toaster position="top-right" />
+        {sharedBg}
+        <Header />
+        <div
+          key="screen-quiz-result"
+          className="relative z-10 min-h-screen flex flex-col items-center justify-center p-6 pt-24 md:pt-28"
+        >
+          <QuizResultCard
+            result={quizResult}
+            onFileSelect={handleFileSelect}
+            selectedFile={photoFile}
+          />
+        </div>
+      </>
+    )
+  }
+
+  // ── Tela 5: Loading ───────────────────────────────────────────────────────
   if (step === 'processing') {
     return (
       <>
@@ -284,7 +483,7 @@ export default function Home() {
     )
   }
 
-  // ── Tela 3: Ajuste de foto ────────────────────────────────────────────────
+  // ── Tela 6: Ajuste de foto ────────────────────────────────────────────────
   if (step === 'photo-adjust' && processedPhotoUrl) {
     return (
       <>
@@ -300,6 +499,7 @@ export default function Home() {
               photoUrl={processedPhotoUrl}
               onConfirm={handlePhotoAdjustConfirm}
               onSkip={handlePhotoAdjustSkip}
+              onReplacePhoto={handleReplacePhoto}
             />
           </div>
         </div>
@@ -307,7 +507,7 @@ export default function Home() {
     )
   }
 
-  // ── Tela 4: Editor ────────────────────────────────────────────────────────
+  // ── Tela 7: Editor ────────────────────────────────────────────────────────
   return (
     <>
       <Toaster position="top-right" />
@@ -335,6 +535,14 @@ export default function Home() {
               >
                 ✦ Reajustar posição da foto
               </button>
+              {/* Replace photo button */}
+              <button
+                type="button"
+                onClick={handleReplacePhoto}
+                className="mt-1.5 w-full flex items-center justify-center gap-1.5 py-2 px-4 rounded-[8px] border border-[#D1D5DB] text-[#374151] font-body text-xs font-medium hover:bg-[#F5F5F5] transition-all duration-150"
+              >
+                📷 Subir outra foto
+              </button>
               {/* Force-rare toggle — test button, remove after validation */}
               <button
                   type="button"
@@ -361,6 +569,7 @@ export default function Home() {
                 onDownload={handleDownload}
                 onReset={handleReset}
                 isDownloadEnabled={isStampComplete(stampData)}
+                quizResult={quizResult}
               />
             </div>
           </div>

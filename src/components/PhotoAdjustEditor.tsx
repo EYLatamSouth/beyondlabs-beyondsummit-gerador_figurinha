@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Move, ZoomIn, ZoomOut, Check, SkipForward } from 'lucide-react'
+import { Move, ZoomIn, ZoomOut, Check, SkipForward, Camera } from 'lucide-react'
 import type { PhotoTransform } from '@/types/stamp'
 import { DEFAULT_PHOTO_TRANSFORM } from '@/types/stamp'
 
@@ -13,6 +13,7 @@ interface PhotoAdjustEditorProps {
   photoUrl: string
   onConfirm: (transform: PhotoTransform) => void
   onSkip: () => void
+  onReplacePhoto?: () => void
 }
 
 interface DragState {
@@ -33,7 +34,7 @@ const MIN_SCALE = 0.4
 const MAX_SCALE = 3.0
 const SCALE_STEP = 0.1
 
-export function PhotoAdjustEditor({ photoUrl, onConfirm, onSkip }: PhotoAdjustEditorProps) {
+export function PhotoAdjustEditor({ photoUrl, onConfirm, onSkip, onReplacePhoto }: PhotoAdjustEditorProps) {
   const [transform, setTransform] = useState<PhotoTransform>(DEFAULT_PHOTO_TRANSFORM)
   const containerRef = useRef<HTMLDivElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
@@ -250,9 +251,9 @@ export function PhotoAdjustEditor({ photoUrl, onConfirm, onSkip }: PhotoAdjustEd
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
-          {/* Template background */}
+          {/* Template background — clean version without bottom text for easier positioning */}
           <img
-            src="/template/figurinha-bg.png"
+            src="/assets/beyond-summit-world-cup-15.png"
             alt=""
             aria-hidden
             className="absolute inset-0 w-full h-full object-fill pointer-events-none select-none"
@@ -328,6 +329,17 @@ export function PhotoAdjustEditor({ photoUrl, onConfirm, onSkip }: PhotoAdjustEd
           <Check size={20} strokeWidth={2.5} />
           Confirmar posição
         </button>
+
+        {onReplacePhoto && (
+          <button
+            type="button"
+            onClick={onReplacePhoto}
+            className="w-full flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-[8px] border border-[#D1D5DB] text-[#374151] font-body text-sm font-medium hover:bg-[#F5F5F5] transition-all duration-150"
+          >
+            <Camera size={14} />
+            Subir outra foto
+          </button>
+        )}
 
         <button
           type="button"

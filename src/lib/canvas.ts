@@ -413,12 +413,8 @@ export async function composeLayers(
 
   // ── Role | Área — second line, baseline at card y+98 ──────────────────────
   const rolePart = stampData.role.trim()
-  const areaPart = stampData.area.trim()
-  const roleAreaText =
-    rolePart && areaPart
-      ? `${rolePart} | ${areaPart}`
-      : rolePart || areaPart || 'Cargo | Área'
-  const roleAreaColor = rolePart || areaPart ? '#000000' : '#BBBBBB'
+  const roleAreaText = rolePart || 'Posição'
+  const roleAreaColor = rolePart ? '#000000' : '#BBBBBB'
 
   const roleAreaFontSize = shrinkFontToFit(
     ctx,

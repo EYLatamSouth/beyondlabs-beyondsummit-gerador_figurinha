@@ -1,5 +1,6 @@
 import { Download, RotateCcw } from 'lucide-react'
 import type { StampData } from '@/types/stamp'
+import type { QuizResultData } from '@/types/quiz'
 import { CountrySelect } from '@/components/CountrySelect'
 
 interface StampFormProps {
@@ -8,6 +9,7 @@ interface StampFormProps {
   onDownload: () => void
   onReset?: () => void
   isDownloadEnabled: boolean
+  quizResult: QuizResultData | null
 }
 
 interface FieldLabelProps {
@@ -40,6 +42,7 @@ export function StampForm({
   onDownload,
   onReset,
   isDownloadEnabled,
+  quizResult,
 }: StampFormProps) {
   return (
     <div className="flex flex-col gap-4">
@@ -55,6 +58,35 @@ export function StampForm({
         </div>
       </div>
 
+      {/* Quiz result badge (read-only) */}
+      {quizResult && (
+        <div
+          className="rounded-2xl border-2 p-4 flex items-center gap-3"
+          style={{ borderColor: quizResult.color, backgroundColor: quizResult.colorBg }}
+        >
+          <div
+            className="shrink-0 flex items-center justify-center w-10 h-10 rounded-xl"
+            style={{ backgroundColor: quizResult.color }}
+          >
+            <quizResult.icon size={20} color="#FFFFFF" strokeWidth={2} />
+          </div>
+          <div className="min-w-0">
+            <p className="font-display font-extrabold text-base uppercase tracking-wide text-[#111111] leading-tight">
+              {quizResult.title}
+            </p>
+            <p className="font-body text-xs font-semibold mt-0.5" style={{ color: quizResult.color }}>
+              {quizResult.area}
+            </p>
+          </div>
+          <span
+            className="ml-auto shrink-0 text-[10px] font-bold font-body uppercase tracking-wider px-2 py-0.5 rounded-full"
+            style={{ backgroundColor: quizResult.color, color: '#FFFFFF' }}
+          >
+            Seu resultado
+          </span>
+        </div>
+      )}
+
       {/* Nome */}
       <div>
         <FieldLabel htmlFor="stamp-name">Nome</FieldLabel>
@@ -64,32 +96,6 @@ export function StampForm({
           value={value.name}
           onChange={(e) => onChange({ ...value, name: e.target.value })}
           placeholder="Seu nome completo"
-          className={inputBase}
-        />
-      </div>
-
-      {/* Cargo */}
-      <div>
-        <FieldLabel htmlFor="stamp-role">Cargo</FieldLabel>
-        <input
-          id="stamp-role"
-          type="text"
-          value={value.role}
-          onChange={(e) => onChange({ ...value, role: e.target.value })}
-          placeholder="Ex: Senior Manager"
-          className={inputBase}
-        />
-      </div>
-
-      {/* Área */}
-      <div>
-        <FieldLabel htmlFor="stamp-area">Área</FieldLabel>
-        <input
-          id="stamp-area"
-          type="text"
-          value={value.area}
-          onChange={(e) => onChange({ ...value, area: e.target.value })}
-          placeholder="Ex: Technology Consulting"
           className={inputBase}
         />
       </div>

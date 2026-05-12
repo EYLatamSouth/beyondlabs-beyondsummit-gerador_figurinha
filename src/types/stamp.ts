@@ -27,6 +27,8 @@ export interface ParticipantRecord {
   cargo: string;
   area: string;
   status?: 'started' | 'completed';
+  /** Full quiz result label, e.g. "Camisa 10 | Meia Armador(a) — Innovation Core Methods" */
+  quizResult?: string;
 }
 
 export interface Country {
