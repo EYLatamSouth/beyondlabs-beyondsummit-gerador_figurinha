@@ -6,11 +6,13 @@ Aplicação web para geração de figurinhas digitais personalizadas para o even
 
 ## ✨ Funcionalidades
 
+- **Quiz de posicionamento** (5 perguntas + desempate): define automaticamente o "cargo" do participante na figurinha
 - Upload de foto com remoção de fundo automática via WebAssembly ([@imgly/background-removal](https://img.ly/background-removal))
+- Ajuste de foto interativo (arrastar, zoom) com template de pré-visualização e botão "Subir outra foto"
 - Composição de figurinha em tempo real via Canvas API
 - Seleção de país com chips de acesso rápido e modal com lista completa
 - Download imediato do PNG sem depender do backend
-- Registro de participação assíncrono (fire-and-forget) via Azure Functions
+- Registro de participação assíncrono (fire-and-forget) via Azure Functions — inclui resultado do quiz
 - Painel administrativo com métricas protegido por chave
 
 ---
@@ -100,15 +102,19 @@ O `swa-cli` emula o ambiente do Azure Static Web Apps com as Functions rodando l
 O frontend é **100% client-side** — nenhuma imagem é enviada a servidores externos.
 
 ```
-Upload foto
-  → useBackgroundRemoval (@imgly WASM, local)
-  → blob URL com fundo transparente
-  → StampCanvas compõe layers em tempo real
-  → Usuário preenche StampForm (nome, cargo, área, email, país)
-  → Clique em "Baixar figurinha"
-      → canvas.toDataURL() → download PNG  (síncrono, imediato)
-      → registerParticipant() → POST /api/register  (assíncrono, fire and forget)
+Tela 1 — Landing: usuário informa prefixo do email corporativo → clica "Começar Quiz"
+Tela 2 — Quiz: 5 perguntas de múltipla escolha (A/B/C/D)
+Tela 3 — Desempate (opcional): pergunta extra se houver empate
+Tela 4 — Resultado do Quiz: exibe posição + área; usuário faz upload da foto
+Tela 5 — Processando: remoção de fundo via @imgly WASM (local, sem servidor)
+Tela 6 — Ajuste de Foto: arrastar/zoom; botão "Subir outra foto"
+Tela 7 — Editor: StampCanvas em tempo real + StampForm (nome, email, país)
+           → Clique em "Baixar figurinha"
+               → canvas.toDataURL() → download PNG  (síncrono, imediato)
+               → registerParticipant() → POST /api/register  (assíncrono, fire and forget)
 ```
+
+> `role` e `area` na figurinha são preenchidos automaticamente pelo resultado do quiz.
 
 ### Layers do canvas (ordem obrigatória)
 
@@ -117,7 +123,9 @@ Upload foto
 | 1 | Fundo verde com silhueta BS | `/public/template/figurinha-bg.png` |
 | 2 | Foto do usuário (fundo removido) | blob URL |
 | 3 | Card de bandeira (desenhado dinamicamente) | `/public/flags/[code].svg` |
-| 4 | Textos: NOME + Área | — |
+| 4 | Textos: NOME + Posição (do quiz) | — |
+
+> Durante o ajuste de foto (tela 6), o preview usa `/public/assets/beyond-summit-world-cup-15.png` como background para facilitar o posicionamento.
 
 ### Endpoints da API
 
@@ -134,17 +142,25 @@ Upload foto
 ├── api/                    # Azure Functions
 │   ├── register/           # POST /api/register
 │   └── metrics/            # GET /api/metrics
+├── assets/                 # Arquivos fonte de design (não servidos como web assets)
 ├── public/
+│   ├── assets/             # Assets adicionais do canvas e pré-visualização
 │   ├── flags/              # Bandeiras SVG por código ISO alpha-2
 │   └── template/           # Assets do canvas (bg, overlay)
 ├── src/
 │   ├── components/         # Componentes React (PascalCase)
+│   │   └── quiz/           # QuizQuestion, QuizResultCard
 │   ├── hooks/              # Hooks customizados (prefixo use)
 │   ├── lib/
-│   │   └── canvas.ts       # Funções puras de composição do canvas
+│   │   ├── canvas.ts       # Funções puras de composição do canvas
+│   │   ├── countries.ts    # Lista de países suportados
+│   │   ├── analytics.ts    # registerParticipant (fire and forget)
+│   │   └── quiz.ts         # Perguntas, resultados e calculateResult()
 │   ├── pages/              # Páginas da aplicação
-│   ├── types/              # Interfaces TypeScript
-│   └── App.tsx             # Orquestrador de estado e navegação
+│   ├── types/
+│   │   ├── stamp.ts        # StampData, ParticipantRecord, Country
+│   │   └── quiz.ts         # QuizQuestion, QuizResultData, QuizAnswers
+│   └── App.tsx             # Orquestrador de rotas
 ├── docs/                   # Documentação técnica
 ├── .env.example
 └── staticwebapp.config.json

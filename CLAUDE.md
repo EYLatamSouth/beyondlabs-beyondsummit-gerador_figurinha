@@ -71,8 +71,8 @@ Referências visuais: `docs/DESIGN.md` | Arquitetura: `docs/ARCHITECTURE.md` | P
 
 interface StampData {
   name: string;
-  role: string;
-  area: string;
+  role: string;        // preenchido automaticamente pelo resultado do quiz
+  area: string;        // preenchido automaticamente pelo resultado do quiz
   email: string;
   countryCode: string;
 }
@@ -82,7 +82,11 @@ interface ParticipantRecord {
   email: string;
   pais: string;
   paisCode: string;
-  timestamp: string; // ISO 8601
+  timestamp: string;   // ISO 8601
+  cargo?: string;
+  area?: string;
+  status?: 'started' | 'completed';
+  quizResult?: string; // ex: "Camisa 10 | Meia Armador(a) — Innovation Core Methods"
 }
 
 interface Country {
@@ -91,6 +95,26 @@ interface Country {
   name: string;        // ex: 'Brasil'
   featured: boolean;   // true = chip visível no nível 1
 }
+```
+
+```typescript
+// src/types/quiz.ts
+
+type QuizLetter = 'A' | 'B' | 'C' | 'D'
+
+interface QuizResultData {
+  letter: QuizLetter
+  title: string      // ex: "Camisa 10 | Meia Armador(a)"
+  fullLabel: string  // ex: "Camisa 10 | Meia Armador(a) — Innovation Core Methods"
+  area: string
+  icon: LucideIcon
+  description: string
+  superpower: string
+  color: string      // hex para estilização dinâmica
+  colorBg: string    // hex mais claro para fundo do card
+}
+
+type QuizAnswers = Record<number, QuizLetter>
 ```
 
 ---
@@ -111,11 +135,29 @@ interface Country {
 ## Fluxo Principal da Aplicação
 
 ```
-Upload foto
-  → useBackgroundRemoval (@imgly WASM, local)
+Tela 1 — Landing: usuário digita prefixo do email (ex: nome.sobrenome@br) → ".ey.com" é concatenado
+  → handleStartQuiz() — registra email imediatamente (fire and forget, status: 'started')
+
+Tela 2 — Quiz: 5 perguntas de múltipla escolha (A/B/C/D)
+  → handleQuizAnswer() — avança para próxima pergunta
+
+Tela 3 — Desempate (apenas se empate): 1 pergunta extra
+  → resultado resolve diretamente via tiebreaker letter
+
+Tela 4 — Resultado do Quiz + Upload:
+  → quizResult popula stampData.role e stampData.area automaticamente
+  → usuário faz upload da foto
+
+Tela 5 — Processando: useBackgroundRemoval (@imgly WASM, local)
   → blob URL com fundo transparente
+
+Tela 6 — Ajuste de Foto: PhotoAdjustEditor (arrastar, zoom)
+  → background de pré-visualização: /public/assets/beyond-summit-world-cup-15.png
+  → botão "Subir outra foto" disponível
+
+Tela 7 — Editor:
   → StampCanvas compõe layers em tempo real
-  → Usuário preenche StampForm (nome, cargo, área, email, país)
+  → StampForm: nome, email, país (role/area são read-only via quiz badge)
   → Clique em "Baixar figurinha"
       → canvas.toDataURL() → download PNG (síncrono, imediato)
       → registerParticipant() → POST /api/register (assíncrono, fire and forget)
@@ -130,22 +172,24 @@ Upload foto
 2. Foto do usuário    — blob URL com fundo removido (zona y=80 a y=830, full width)
 3. Card bandeira      — white rounded card desenhado dinamicamente, bottom-right (x≈600, y≈820)
                         layout vertical: flag em cima, código ISO embaixo
-4. Textos             — NOME (800 bold, ~88px, shrinks to fit) + Área (400 regular, ~38px)
+4. Textos             — NOME (800 bold, ~88px, shrinks to fit) + Posição/role (~38px)
                         sobre white card baked no template, bottom-left (x≈30, y≈1030)
 ```
 
-> Cargo foi removido do canvas no novo template FY26.
+> `role` vem do resultado do quiz (ex: "Camisa 10 | Meia Armador(a)"). `area` não aparece no canvas.
+> Durante o ajuste de foto, o preview usa `/public/assets/beyond-summit-world-cup-15.png` como background.
 
 ---
 
 ## Assets e Paths
 
 ```
-/public/template/figurinha-bg.png       # Layer 1 — fundo verde com silhueta BS
-/public/template/figurinha-overlay.png  # Layer 3 — logo BS+troféu, "BEYOND SUMMIT"
-/public/flags/[code].svg                # Bandeiras por código ISO alpha-2
-/public/assets/beyondlabs-logo.png      # Logo BeyondLabs (header da interface)
-/public/assets/soccer-pattern.svg       # Watermark sutil do fundo
+/public/template/figurinha-bg.png                  # Layer 1 — fundo verde com silhueta BS
+/public/template/figurinha-overlay.png             # Layer 3 — logo BS+troféu, "BEYOND SUMMIT"
+/public/flags/[code].svg                           # Bandeiras por código ISO alpha-2
+/public/assets/beyondlabs-logo.png                 # Logo BeyondLabs (header da interface)
+/public/assets/soccer-pattern.svg                  # Watermark sutil do fundo
+/public/assets/beyond-summit-world-cup-15.png      # Background no PhotoAdjustEditor
 ```
 
 ---

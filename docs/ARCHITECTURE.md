@@ -77,28 +77,62 @@ O frontend é **100% client-side** — sem login, sem autenticação, sem proces
 ### `src/pages/Home.tsx`
 Página principal. Gerencia o estado global e orquestra as transições entre telas.
 
+**Step enum:**
+```typescript
+step: 'landing' | 'quiz' | 'tiebreaker' | 'quiz-result' | 'processing' | 'photo-adjust' | 'editor'
+```
+
 **Estado:**
 ```typescript
-step: 'upload' | 'processing' | 'editor'
 photoFile: File | null
 processedPhotoUrl: string | null  // blob URL
 stampData: StampData
+uploadEmail: string
+photoTransform: PhotoTransform
+photoAdjusted: boolean
+forceRare: boolean
+// Quiz
+quizStarted: boolean
+quizQuestionIndex: number
+quizAnswers: QuizAnswers
+needsTiebreaker: boolean
+quizResult: QuizResultData | null
+```
+
+**Fluxo de telas:**
+```
+Tela 1: landing     — email (prefixo) + botão "Começar Quiz"
+Tela 2: quiz        — QuizQuestion (5 perguntas)
+Tela 3: tiebreaker  — QuizQuestion (pergunta de desempate, opcional)
+Tela 4: quiz-result — QuizResultCard + UploadZone
+Tela 5: processing  — spinner de remoção de fundo
+Tela 6: photo-adjust — PhotoAdjustEditor
+Tela 7: editor      — StampCanvas + StampForm
 ```
 
 ### `src/pages/Admin.tsx`
 Painel de indicadores para o time de Cultura. Rota `/admin`, protegida por senha. Consome `GET /api/metrics`.
 
 ### `src/components/UploadZone.tsx`
-Drag-and-drop + clique para selecionar. Valida formato (JPG, PNG) e tamanho (5MB). Emite `File` via `onPhotoSelected`.
+Drag-and-drop + clique para selecionar. Valida formato (JPG, PNG) e tamanho (5MB). Emite `File` via `onFileSelect`.
 
 ### `src/components/StampCanvas.tsx`
 Renderiza o canvas da figurinha. Recebe `StampData` + `processedPhotoUrl`. Chama funções de `canvas.ts`. Re-renderiza a cada mudança no `StampData`. Expõe `downloadPNG()`.
 
 ### `src/components/StampForm.tsx`
-Formulário com todos os campos. Emite `StampData` atualizado via `onChange` a cada alteração.
+Formulário com nome, email e país. Exibe badge de resultado do quiz (read-only) derivado de `QuizResultData`. Os campos Cargo e Área são preenchidos automaticamente pelo quiz e não são editáveis pelo usuário.
+
+### `src/components/PhotoAdjustEditor.tsx`
+Editor interativo de posicionamento da foto (arrastar + zoom). Usa `/public/assets/beyond-summit-world-cup-15.png` como background de pré-visualização. Aceita prop `onReplacePhoto` para expor botão "Subir outra foto".
 
 ### `src/components/CountrySelect.tsx`
 Dois níveis: chips visíveis (8 países principais) + modal "Ver mais" com campo de busca. Retorna `countryCode`.
+
+### `src/components/quiz/QuizQuestion.tsx`
+Exibe uma pergunta do quiz com barra de progresso e 4 opções. Quando `question.id > totalQuestions` trata-se de uma pergunta de desempate (sem progress bar). Emite `onAnswer(letter)`.
+
+### `src/components/quiz/QuizResultCard.tsx`
+Exibe o resultado do quiz (título, área, descrição, superpoder) com card colorido + seção de upload da foto abaixo.
 
 ### `src/components/DownloadButton.tsx`
 Botão de download (chama `downloadPNG()`) e botão de compartilhamento no LinkedIn (LinkedIn Share API).
@@ -117,9 +151,18 @@ Lógica de composição do canvas: carrega imagens, gerencia layers, exporta PNG
 ### `src/lib/canvas.ts`
 Funções puras de canvas:
 - `loadImage(src): Promise<HTMLImageElement>`
-- `composeLayers(canvas, stampData, photoUrl): Promise<void>`
+- `composeLayers(canvas, stampData, photoUrl, photoTransform): Promise<void>`
 - `drawText(ctx, text, x, y, options): void`
 - `exportPNG(canvas, filename): void`
+
+> O campo `role` (derivado do quiz) é exibido como texto de posição na figurinha. `area` não aparece mais no canvas.
+
+### `src/lib/quiz.ts`
+Dados e lógica do quiz:
+- `QUIZ_QUESTIONS: QuizQuestion[]` — 5 perguntas
+- `TIEBREAKER_QUESTION: QuizQuestion` — pergunta de desempate
+- `QUIZ_RESULTS: Record<QuizLetter, QuizResultData>` — 4 resultados (A/B/C/D)
+- `calculateResult(answers): QuizLetter | null` — retorna o vencedor ou `null` em empate
 
 ### `src/lib/countries.ts`
 ```typescript
@@ -141,8 +184,8 @@ export async function registerParticipant(data: ParticipantRecord): Promise<void
 ```typescript
 export interface StampData {
   name: string;
-  role: string;
-  area: string;
+  role: string;    // preenchido automaticamente pelo quiz
+  area: string;    // preenchido automaticamente pelo quiz
   email: string;
   countryCode: string;
 }
@@ -152,8 +195,37 @@ export interface ParticipantRecord {
   email: string;
   pais: string;
   paisCode: string;
-  timestamp: string;
+  timestamp: string;  // ISO 8601
+  cargo?: string;
+  area?: string;
+  status?: 'started' | 'completed';
+  quizResult?: string;  // ex: "Camisa 10 | Meia Armador(a) — Innovation Core Methods"
 }
+```
+
+### `src/types/quiz.ts`
+```typescript
+export type QuizLetter = 'A' | 'B' | 'C' | 'D'
+
+export interface QuizQuestion {
+  id: number
+  text: string
+  options: QuizOption[]
+}
+
+export interface QuizResultData {
+  letter: QuizLetter
+  title: string      // ex: "Camisa 10 | Meia Armador(a)"
+  fullLabel: string  // ex: "Camisa 10 | Meia Armador(a) — Innovation Core Methods"
+  area: string
+  icon: LucideIcon
+  description: string
+  superpower: string
+  color: string
+  colorBg: string
+}
+
+export type QuizAnswers = Record<number, QuizLetter>
 ```
 
 ---
@@ -168,10 +240,14 @@ Registra a participação de um colaborador.
 ```json
 {
   "nome": "Denis Balaguer",
-  "email": "denis@ey.com",
+  "email": "denis.balaguer@ey.com",
   "pais": "Brasil",
   "paisCode": "br",
-  "timestamp": "2026-06-15T14:30:00.000Z"
+  "timestamp": "2026-06-15T14:30:00.000Z",
+  "cargo": "Camisa 10 | Meia Armador(a)",
+  "area": "Innovation Core Methods",
+  "status": "completed",
+  "quizResult": "Camisa 10 | Meia Armador(a) — Innovation Core Methods"
 }
 ```
 
@@ -261,16 +337,25 @@ Retorna indicadores para o painel `/admin`. Requer header `x-admin-key`.
 │   │   ├── ar.svg
 │   │   └── ...
 │   └── assets/
-│       ├── beyondlabs-logo.png      # Logo BeyondLabs (header)
-│       └── soccer-pattern.svg       # Watermark sutil do fundo
+│       ├── beyondlabs-logo.png                # Logo BeyondLabs (header)
+│       ├── soccer-pattern.svg                  # Watermark sutil do fundo
+│       └── beyond-summit-world-cup-15.png      # Background de pré-visualização no ajuste de foto
+│
+├── assets/                          # Arquivos fonte de design (não servidos como web assets)
+│   ├── beyond summit world cup-15.png
+│   └── beyond summit world cup-16.png
 │
 ├── src/
 │   ├── components/
 │   │   ├── UploadZone.tsx
 │   │   ├── StampCanvas.tsx
 │   │   ├── StampForm.tsx
+│   │   ├── PhotoAdjustEditor.tsx
 │   │   ├── CountrySelect.tsx
 │   │   ├── DownloadButton.tsx
+│   │   ├── quiz/
+│   │   │   ├── QuizQuestion.tsx
+│   │   │   └── QuizResultCard.tsx
 │   │   └── admin/
 │   │       ├── AdminLogin.tsx
 │   │       ├── AdminDashboard.tsx
@@ -281,9 +366,11 @@ Retorna indicadores para o painel `/admin`. Requer header `x-admin-key`.
 │   ├── lib/
 │   │   ├── canvas.ts
 │   │   ├── countries.ts
-│   │   └── analytics.ts
+│   │   ├── analytics.ts
+│   │   └── quiz.ts
 │   ├── types/
-│   │   └── stamp.ts
+│   │   ├── stamp.ts
+│   │   └── quiz.ts
 │   ├── pages/
 │   │   ├── Home.tsx
 │   │   └── Admin.tsx
@@ -299,13 +386,12 @@ Retorna indicadores para o painel `/admin`. Requer header `x-admin-key`.
 │       └── function.json
 │
 ├── docs/
-│   ├── PRD.md
+│   ├── PRD_BeyondSummit_v2.md
 │   ├── ARCHITECTURE.md
 │   ├── DESIGN.md
 │   └── ROADMAP.md
 │
 ├── .github/
-│   ├── copilot-instructions.md
 │   └── workflows/
 │       └── azure-static-web-apps.yml
 │
