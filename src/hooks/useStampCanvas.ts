@@ -16,6 +16,7 @@ export function useStampCanvas(
   photoUrl: string | null,
   photoTransform: PhotoTransform = DEFAULT_PHOTO_TRANSFORM,
   forceRare = false,
+  namePlaceholder = 'NOME AQUI',
 ): UseStampCanvasReturn {
   const [canvasEl, setCanvasEl] = useState<HTMLCanvasElement | null>(null)
   const [isComposing, setIsComposing] = useState(false)
@@ -34,7 +35,7 @@ export function useStampCanvas(
     if (!canvasEl || !photoUrl) return
 
     setIsComposing(true)
-    composeLayers(canvasEl, stampData, photoUrl, photoTransform, forceRare)
+    composeLayers(canvasEl, stampData, photoUrl, photoTransform, forceRare, namePlaceholder)
       .catch((err) => console.error('[useStampCanvas] composeLayers error:', err))
       .finally(() => setIsComposing(false))
   }, [canvasEl, stampData, photoUrl, photoTransform, forceRare])
@@ -53,7 +54,7 @@ export function useStampCanvas(
     setIsRare(rare)
 
     // Always compose immediately before export to capture the correct template.
-    await composeLayers(canvasEl, stampData, photoUrl!, photoTransform, rare)
+    await composeLayers(canvasEl, stampData, photoUrl!, photoTransform, rare, namePlaceholder)
     exportPNG(canvasEl, 'figurinha_beyondsummit2026.png')
     return rare
   }, [canvasEl, forceRare, stampData, photoUrl, photoTransform])

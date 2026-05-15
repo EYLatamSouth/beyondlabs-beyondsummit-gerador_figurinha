@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { Move, ZoomIn, ZoomOut, Check, SkipForward, Camera } from 'lucide-react'
 import type { PhotoTransform } from '@/types/stamp'
 import { DEFAULT_PHOTO_TRANSFORM } from '@/types/stamp'
+import { useLocale } from '@/i18n'
 
 // Canvas dimensions — must match canvas.ts constants
 const CANVAS_WIDTH = 900
@@ -35,6 +36,7 @@ const MAX_SCALE = 3.0
 const SCALE_STEP = 0.1
 
 export function PhotoAdjustEditor({ photoUrl, onConfirm, onSkip, onReplacePhoto }: PhotoAdjustEditorProps) {
+  const { locale } = useLocale()
   const [transform, setTransform] = useState<PhotoTransform>(DEFAULT_PHOTO_TRANSFORM)
   const containerRef = useRef<HTMLDivElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
@@ -234,10 +236,10 @@ export function PhotoAdjustEditor({ photoUrl, onConfirm, onSkip, onReplacePhoto 
       {/* Header */}
       <div className="text-center">
         <h2 className="font-display text-2xl font-bold text-[#111111] uppercase tracking-wide leading-tight">
-          Ajuste sua foto
+          {locale.photoAdjust.title}
         </h2>
         <p className="font-body text-sm text-[#6B7280] mt-1">
-          Arraste para reposicionar · scroll ou pinch para zoom
+          {locale.photoAdjust.hint}
         </p>
       </div>
 
@@ -277,7 +279,7 @@ export function PhotoAdjustEditor({ photoUrl, onConfirm, onSkip, onReplacePhoto 
           >
             <div className="flex flex-col items-center gap-1 bg-black/30 rounded-xl px-4 py-2 backdrop-blur-[2px] opacity-60">
               <Move size={20} className="text-white" />
-              <span className="font-body text-white text-xs font-medium">Arraste para ajustar</span>
+                <span className="font-body text-white text-xs font-medium">{locale.photoAdjust.dragHint}</span>
             </div>
           </div>
         </div>
@@ -327,7 +329,7 @@ export function PhotoAdjustEditor({ photoUrl, onConfirm, onSkip, onReplacePhoto 
           className="w-full flex items-center justify-center gap-2 py-4 px-8 rounded-[8px] font-display font-bold text-xl tracking-widest uppercase text-white bg-[#1A5C2A] hover:bg-[#3D9A52] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(26,92,42,0.35)] transition-all duration-200"
         >
           <Check size={20} strokeWidth={2.5} />
-          Confirmar posição
+          {locale.photoAdjust.confirmButton}
         </button>
 
         {onReplacePhoto && (
@@ -337,7 +339,7 @@ export function PhotoAdjustEditor({ photoUrl, onConfirm, onSkip, onReplacePhoto 
             className="w-full flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-[8px] border border-[#D1D5DB] text-[#374151] font-body text-sm font-medium hover:bg-[#F5F5F5] transition-all duration-150"
           >
             <Camera size={14} />
-            Subir outra foto
+            {locale.photoAdjust.replacePhoto}
           </button>
         )}
 
@@ -347,7 +349,7 @@ export function PhotoAdjustEditor({ photoUrl, onConfirm, onSkip, onReplacePhoto 
           className="w-full flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-[8px] text-[#6B7280] font-body text-sm font-medium hover:bg-[#F5F5F5] transition-all duration-150"
         >
           <SkipForward size={14} />
-          Pular ajuste
+          {locale.photoAdjust.skipButton}
         </button>
       </div>
     </div>

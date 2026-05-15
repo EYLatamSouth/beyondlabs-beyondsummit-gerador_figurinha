@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { removeBackground } from '@imgly/background-removal'
 import { toast } from 'sonner'
+import { useLocale } from '@/i18n'
 
 export type RemovalStatus = 'idle' | 'processing' | 'done' | 'error'
 
@@ -12,6 +13,7 @@ interface UseBackgroundRemovalReturn {
 }
 
 export function useBackgroundRemoval(): UseBackgroundRemovalReturn {
+  const { locale } = useLocale()
   const [status, setStatus] = useState<RemovalStatus>('idle')
   const [processedUrl, setProcessedUrl] = useState<string | null>(null)
   const blobUrlRef = useRef<string | null>(null)
@@ -46,7 +48,7 @@ export function useBackgroundRemoval(): UseBackgroundRemovalReturn {
     } catch (err) {
       console.error('[useBackgroundRemoval] error:', err)
       setStatus('error')
-      toast.error('Não foi possível remover o fundo. Tente com outra foto.')
+      toast.error(locale.toasts.bgRemovalError)
     }
   }
 

@@ -216,6 +216,7 @@ export async function composeLayers(
   photoUrl: string,
   photoTransform: PhotoTransform = DEFAULT_PHOTO_TRANSFORM,
   isRare = false,
+  namePlaceholder = 'NOME AQUI',
 ): Promise<void> {
   canvas.width = CANVAS_WIDTH
   canvas.height = CANVAS_HEIGHT
@@ -393,7 +394,7 @@ export async function composeLayers(
   fillRoundedRect(ctx, NAME_CARD_X, NAME_CARD_Y, NAME_CARD_W, NAME_CARD_H, NAME_CARD_R, '#ffffff')
 
   // ── Name — top line, baseline at card y+60 ────────────────────────────────
-  const nameText = stampData.name.trim() ? stampData.name.toUpperCase() : 'NOME AQUI'
+  const nameText = stampData.name.trim() ? stampData.name.toUpperCase() : namePlaceholder
 
   const nameFontSize = shrinkFontToFit(
     ctx,

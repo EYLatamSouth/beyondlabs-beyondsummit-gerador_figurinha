@@ -8,6 +8,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog'
+import { useLocale } from '@/i18n'
 
 interface CountrySelectProps {
   value: string
@@ -15,12 +16,15 @@ interface CountrySelectProps {
 }
 
 export function CountrySelect({ value, onChange }: CountrySelectProps) {
+  const { locale } = useLocale()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [query, setQuery] = useState('')
 
+  const getCountryName = (code: string) => locale.countries[code] ?? code
+
   const nonFeatured = COUNTRIES.filter((c) => !c.featured)
   const filtered = nonFeatured.filter((c) =>
-    c.name.toLowerCase().includes(query.toLowerCase()),
+    getCountryName(c.code).toLowerCase().includes(query.toLowerCase()),
   )
 
   const selectedNonFeatured = nonFeatured.find((c) => c.code === value)
@@ -59,7 +63,7 @@ export function CountrySelect({ value, onChange }: CountrySelectProps) {
                 className="leading-tight text-center font-body font-medium"
                 style={{ fontSize: '10.5px' }}
               >
-                {country.name}
+                {getCountryName(country.code)}
               </span>
             </button>
           )
@@ -71,7 +75,7 @@ export function CountrySelect({ value, onChange }: CountrySelectProps) {
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#F0FDF4] border border-[#1A5C2A]">
           <span className="text-lg">{getFlagEmoji(selectedNonFeatured.code)}</span>
           <span className="text-sm font-body font-medium text-[#1A5C2A] flex-1">
-            {selectedNonFeatured.name}
+            {getCountryName(selectedNonFeatured.code)}
           </span>
           <Check size={14} className="text-[#1A5C2A]" />
         </div>
@@ -84,7 +88,7 @@ export function CountrySelect({ value, onChange }: CountrySelectProps) {
         className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl border border-[#D1D5DB] bg-white text-[#374151] text-sm font-body font-medium hover:bg-[#F0FDF4] hover:border-[#3D9A52] hover:text-[#1A5C2A] transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(26,92,42,0.4)]"
       >
         <Globe size={14} />
-        <span>+ Ver mais países</span>
+        <span>{locale.countrySelect.seeMore}</span>
       </button>
 
       {/* Level 2 — Modal */}
@@ -94,10 +98,10 @@ export function CountrySelect({ value, onChange }: CountrySelectProps) {
           <div className="bg-[#1A5C2A] px-5 py-4">
             <DialogHeader>
               <DialogTitle className="font-display text-xl font-bold text-white uppercase tracking-wide">
-                Outros países
+                {locale.countrySelect.modalTitle}
               </DialogTitle>
               <DialogDescription className="text-[#7DC48A] text-sm font-body mt-0.5">
-                Selecione o seu país de origem
+                {locale.countrySelect.modalSubtitle}
               </DialogDescription>
             </DialogHeader>
           </div>
@@ -113,7 +117,7 @@ export function CountrySelect({ value, onChange }: CountrySelectProps) {
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Buscar país..."
+                placeholder={locale.countrySelect.searchPlaceholder}
                 className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-[#D1D5DB] text-sm font-body bg-[#F9FAFB] placeholder:text-[#9CA3AF] text-[#111111] focus:outline-none focus:border-[#1A5C2A] focus:ring-2 focus:ring-[rgba(26,92,42,0.1)] transition-all duration-150"
               />
             </div>
@@ -122,7 +126,7 @@ export function CountrySelect({ value, onChange }: CountrySelectProps) {
             <div className="max-h-60 overflow-y-auto -mx-1 px-1 space-y-0.5">
               {filtered.length === 0 ? (
                 <p className="text-center text-sm text-[#9CA3AF] py-8 font-body">
-                  Nenhum país encontrado
+                  {locale.countrySelect.noResults}
                 </p>
               ) : (
                 filtered.map((country) => {
@@ -141,7 +145,7 @@ export function CountrySelect({ value, onChange }: CountrySelectProps) {
                     >
                       <span className="flex items-center gap-2.5">
                         <span className="text-lg leading-none">{getFlagEmoji(country.code)}</span>
-                        <span className="font-body">{country.name}</span>
+                        <span className="font-body">{getCountryName(country.code)}</span>
                       </span>
                       {isSelected && <Check size={14} className="text-[#1A5C2A] shrink-0" />}
                     </button>

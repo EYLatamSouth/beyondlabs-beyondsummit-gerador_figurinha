@@ -11,14 +11,17 @@ import { DecorativeCorners } from '@/components/DecorativeCorners'
 import { AppBackground } from '@/components/AppBackground'
 import { QuizQuestion } from '@/components/quiz/QuizQuestion'
 import { QuizResultCard } from '@/components/quiz/QuizResultCard'
+import { LanguagePicker } from '@/components/LanguagePicker'
 import { useBackgroundRemoval } from '@/hooks/useBackgroundRemoval'
 import { useStampCanvas } from '@/hooks/useStampCanvas'
+import { useLocale } from '@/i18n'
 import { registerParticipant } from '@/lib/analytics'
 import { getCountryByCode } from '@/lib/countries'
-import { QUIZ_QUESTIONS, TIEBREAKER_QUESTION, QUIZ_RESULTS, calculateResult } from '@/lib/quiz'
+import { buildQuizResults, calculateResult } from '@/lib/quiz'
 import type { StampData, PhotoTransform } from '@/types/stamp'
 import { DEFAULT_PHOTO_TRANSFORM } from '@/types/stamp'
 import type { QuizAnswers, QuizLetter, QuizResultData } from '@/types/quiz'
+import type { LocaleKey } from '@/i18n/types'
 
 
 const EMPTY_STAMP: StampData = {
@@ -29,13 +32,6 @@ const EMPTY_STAMP: StampData = {
   countryCode: '',
 }
 
-
-const LOADING_MESSAGES = [
-  'Analisando sua foto...',
-  'Removendo o fundo...',
-  'Quase lá...',
-]
-
 function isStampComplete(data: StampData): boolean {
   return (
     data.name.trim() !== '' &&
@@ -45,6 +41,9 @@ function isStampComplete(data: StampData): boolean {
 }
 
 export default function Home() {
+  const { locale, setLang } = useLocale()
+
+  const [langSelected, setLangSelected] = useState(false)
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [uploadEmail, setUploadEmail] = useState('')
   const [stampData, setStampData] = useState<StampData>(EMPTY_STAMP)
@@ -69,16 +68,22 @@ export default function Home() {
     reset,
   } = useBackgroundRemoval()
 
-  const { canvasRef, isComposing, isRare, downloadPNG } = useStampCanvas(stampData, processedPhotoUrl, photoTransform, forceRare)
+  const { canvasRef, isComposing, isRare, downloadPNG } = useStampCanvas(stampData, processedPhotoUrl, photoTransform, forceRare, locale.editor.canvasNamePlaceholder)
+
+  // Derive localized quiz data from current locale
+  const QUIZ_QUESTIONS = locale.quiz.questions
+  const TIEBREAKER_QUESTION = locale.quiz.tiebreaker
+  const QUIZ_RESULTS = buildQuizResults(locale.quiz.results)
 
   const step =
-    !quizStarted ? 'landing'
-    : quizResult === null && !needsTiebreaker && quizQuestionIndex < QUIZ_QUESTIONS.length ? 'quiz'
-    : quizResult === null && needsTiebreaker ? 'tiebreaker'
-    : quizResult !== null && (!photoFile || status === 'idle') ? 'quiz-result'
-    : status === 'processing' ? 'processing'
-    : status === 'done' && !photoAdjusted ? 'photo-adjust'
-    : 'editor'
+    !langSelected ? 'language'
+      : !quizStarted ? 'landing'
+        : quizResult === null && !needsTiebreaker && quizQuestionIndex < QUIZ_QUESTIONS.length ? 'quiz'
+          : quizResult === null && needsTiebreaker ? 'tiebreaker'
+            : quizResult !== null && (!photoFile || status === 'idle') ? 'quiz-result'
+              : status === 'processing' ? 'processing'
+                : status === 'done' && !photoAdjusted ? 'photo-adjust'
+                  : 'editor'
 
   useEffect(() => {
     if (photoFile) {
@@ -98,11 +103,17 @@ export default function Home() {
 
   useEffect(() => {
     if (status !== 'processing') return
+    const messages = locale.processing.messages
     const id = setInterval(() => {
-      setMsgIndex((i) => (i + 1) % LOADING_MESSAGES.length)
+      setMsgIndex((i) => (i + 1) % messages.length)
     }, 1800)
     return () => clearInterval(id)
-  }, [status])
+  }, [status, locale.processing.messages])
+
+  function handleLanguageSelect(lang: LocaleKey): void {
+    setLang(lang)
+    setLangSelected(true)
+  }
 
   function handleReset(): void {
     setPhotoFile(null)
@@ -130,10 +141,10 @@ export default function Home() {
   function handleStartQuiz(): void {
     const prefix = uploadEmail.trim()
     if (!prefix || /\s/.test(prefix)) {
-      toast.error('Informe seu email corporativo antes de começar o quiz.')
+      toast.error(locale.toasts.emailRequired)
       return
     }
-    const email = prefix + '.ey.com'
+    const email = prefix + 'ey.com'
     setStampData((prev) => ({ ...prev, email }))
     setQuizStarted(true)
     // Fire-and-forget: register email as soon as the user starts the flow
@@ -151,7 +162,6 @@ export default function Home() {
 
   function handleQuizAnswer(letter: QuizLetter): void {
     if (needsTiebreaker) {
-      // Tiebreaker answer resolves the result directly
       setQuizResult(QUIZ_RESULTS[letter])
       setNeedsTiebreaker(false)
       fireQuizConfetti()
@@ -169,7 +179,6 @@ export default function Home() {
       return
     }
 
-    // All 5 questions answered — calculate result
     const winner = calculateResult(updatedAnswers)
     if (winner) {
       setQuizResult(QUIZ_RESULTS[winner])
@@ -212,7 +221,6 @@ export default function Home() {
   }
 
   function handleReplacePhoto(): void {
-    // Clear current file so the useEffect re-fires even if same file is selected again
     setPhotoFile(null)
     setPhotoAdjusted(false)
     replacePhotoInputRef.current?.click()
@@ -221,7 +229,6 @@ export default function Home() {
   function handleReplaceFileSelected(e: React.ChangeEvent<HTMLInputElement>): void {
     const file = e.target.files?.[0]
     if (!file) return
-    // Reset value so the same file can be re-selected if needed
     e.target.value = ''
     setPhotoAdjusted(false)
     setPhotoTransform(DEFAULT_PHOTO_TRANSFORM)
@@ -262,9 +269,9 @@ export default function Home() {
     const rare = await downloadPNG()
     if (rare) {
       fireRareConfetti()
-      toast.success('⭐ Você ganhou uma figurinha rara!')
+      toast.success(locale.toasts.rareStamp)
     } else {
-      toast.success('Figurinha baixada com sucesso!')
+      toast.success(locale.toasts.stampDownloaded)
     }
 
     const country = getCountryByCode(stampData.countryCode)
@@ -297,6 +304,18 @@ export default function Home() {
     </>
   )
 
+  // ── Tela 0: Language picker ───────────────────────────────────────────────
+  if (step === 'language') {
+    return (
+      <>
+        <Toaster position="top-right" />
+        <AppBackground />
+        <DecorativeCorners />
+        <LanguagePicker onSelect={handleLanguageSelect} />
+      </>
+    )
+  }
+
   // ── Tela 1: Landing (email + botão começar quiz) ──────────────────────────
   if (step === 'landing') {
     return (
@@ -325,15 +344,24 @@ export default function Home() {
 
               {/* Hero call-to-action */}
               <h1 className="font-display font-extrabold text-4xl md:text-5xl text-[#111111] uppercase tracking-wide leading-none">
-                Complete o Quiz e ganhe
+                {locale.landing.title}
               </h1>
               <p className="font-display font-bold text-xl md:text-2xl text-[#2D7A40] uppercase tracking-widest mt-1 leading-tight">
-                sua figurinha exclusiva do evento
+                {locale.landing.subtitle}
               </p>
-              <p className="mt-4 text-sm font-body text-[#374151] leading-relaxed">
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
-                incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud
-                exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+              <p className="mt-4 text-sm font-body text-[#374151] leading-relaxed text-left">
+                {locale.landing.description}
+              </p>
+              <p className="mt-2 text-sm font-body text-[#374151] text-left">
+                {locale.landing.learnMoreLabel}{' '}
+                <a
+                  href="https://sites.ey.com/sites/BeyondSummit_2026/SitePages/Home.aspx?ga=1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[#1A5C2A] font-semibold hover:underline"
+                >
+                  BeyondSummit 2026
+                </a>
               </p>
             </div>
 
@@ -343,7 +371,7 @@ export default function Home() {
                 htmlFor="upload-email"
                 className="block text-xs font-semibold font-body uppercase tracking-wider text-[#374151] mb-1.5"
               >
-                Email corporativo
+                {locale.landing.emailLabel}
                 <span className="text-[#EF4444] ml-0.5">*</span>
               </label>
               <div className="flex items-center w-full rounded-[10px] border border-[#D1D5DB] bg-white focus-within:border-[#1A5C2A] focus-within:ring-2 focus-within:ring-[rgba(26,92,42,0.1)] transition-all duration-150 overflow-hidden">
@@ -353,15 +381,15 @@ export default function Home() {
                   value={uploadEmail}
                   onChange={(e) => setUploadEmail(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleStartQuiz() }}
-                  placeholder="nome.sobrenome@br"
+                  placeholder={locale.landing.emailPlaceholder}
                   className="flex-1 min-w-0 px-4 py-3 bg-transparent font-body text-base text-[#111111] placeholder:text-[#9CA3AF] focus:outline-none"
                   autoComplete="off"
                 />
-                <span className="pr-4 font-body text-base text-[#6B7280] select-none whitespace-nowrap">.ey.com</span>
+                <span className="pr-4 font-body text-base text-[#6B7280] select-none whitespace-nowrap">ey.com</span>
               </div>
               <p className="mt-1.5 flex items-start gap-1.5 text-[13px] font-body text-[#6B7280] leading-snug">
                 <span className="shrink-0 mt-px">ℹ️</span>
-                Usado apenas para fins internos de mensuração do evento
+                {locale.landing.emailHint}
               </p>
             </div>
 
@@ -372,11 +400,11 @@ export default function Home() {
               className="w-full flex items-center justify-center gap-3 py-4 px-6 rounded-2xl bg-[#1A5C2A] text-white font-display font-bold text-xl uppercase tracking-wide transition-all duration-150 hover:bg-[#144a22] hover:shadow-lg active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A5C2A] focus-visible:ring-offset-2"
             >
               <span className="text-2xl">⚽</span>
-              Começar Quiz
+              {locale.landing.startButton}
             </button>
 
             <p className="mt-4 text-center text-xs font-body text-[#9CA3AF]">
-              5 perguntas rápidas para descobrir qual é a sua posição em campo
+              {locale.landing.quizHint}
             </p>
           </div>
         </div>
@@ -418,7 +446,7 @@ export default function Home() {
         >
           <div className="w-full max-w-lg mx-auto mb-4 text-center">
             <span className="inline-block text-xs font-bold font-body uppercase tracking-[0.2em] px-3 py-1 rounded-full bg-[#FBF5E6] text-[#C9A84C]">
-              🥅 É Pênalti! Hora do desempate
+              {locale.quiz.tiebreakerBadge}
             </span>
           </div>
           <QuizQuestion
@@ -454,6 +482,7 @@ export default function Home() {
 
   // ── Tela 5: Loading ───────────────────────────────────────────────────────
   if (step === 'processing') {
+    const messages = locale.processing.messages
     return (
       <>
         <Toaster position="top-right" />
@@ -465,17 +494,17 @@ export default function Home() {
         >
           <div className="w-full max-w-sm text-center space-y-6">
             <h2 className="font-display text-3xl font-bold text-[#111111] uppercase tracking-wide">
-              Preparando sua figurinha...
+              {locale.processing.title}
             </h2>
             <div className="w-full bg-[#E5E7EB] rounded-full h-2 overflow-hidden">
               <div className="h-full bg-[#1A5C2A] rounded-full animate-[progress_3s_ease-in-out_infinite]" />
             </div>
             <div className="flex items-center justify-center gap-3 text-[#374151] font-body">
               <Loader2 size={18} className="animate-spin text-[#1A5C2A]" />
-              <span className="text-base">{LOADING_MESSAGES[msgIndex]}</span>
+              <span className="text-base">{messages[msgIndex]}</span>
             </div>
             <p className="text-sm text-[#9CA3AF] font-body">
-              Isso pode levar alguns segundos
+              {locale.processing.hint}
             </p>
           </div>
         </div>
@@ -533,7 +562,7 @@ export default function Home() {
                 onClick={() => setPhotoAdjusted(false)}
                 className="mt-2 w-full flex items-center justify-center gap-1.5 py-2 px-4 rounded-[8px] border border-[#D1D5DB] text-[#374151] font-body text-xs font-medium hover:bg-[#F5F5F5] transition-all duration-150"
               >
-                ✦ Reajustar posição da foto
+                ✦ {locale.photoAdjust.confirmButton}
               </button>
               {/* Replace photo button */}
               <button
@@ -541,24 +570,23 @@ export default function Home() {
                 onClick={handleReplacePhoto}
                 className="mt-1.5 w-full flex items-center justify-center gap-1.5 py-2 px-4 rounded-[8px] border border-[#D1D5DB] text-[#374151] font-body text-xs font-medium hover:bg-[#F5F5F5] transition-all duration-150"
               >
-                📷 Subir outra foto
+                📷 {locale.photoAdjust.replacePhoto}
               </button>
               {/* Force-rare toggle — test button, remove after validation */}
               <button
-                  type="button"
-                  onClick={() => {
-                    const next = !forceRare
-                    setForceRare(next)
-                    if (next) fireRareConfetti()
-                  }}
-                  className={`mt-2 w-full flex items-center justify-center gap-1.5 py-2 px-4 rounded-[8px] border font-body text-xs font-medium transition-all duration-150 ${
-                    forceRare
-                      ? 'bg-[#C9A84C] border-[#C9A84C] text-white'
-                      : 'border-[#C9A84C] text-[#C9A84C] hover:bg-[#FBF5E6]'
+                type="button"
+                onClick={() => {
+                  const next = !forceRare
+                  setForceRare(next)
+                  if (next) fireRareConfetti()
+                }}
+                className={`mt-2 w-full flex items-center justify-center gap-1.5 py-2 px-4 rounded-[8px] border font-body text-xs font-medium transition-all duration-150 ${forceRare
+                    ? 'bg-[#C9A84C] border-[#C9A84C] text-white'
+                    : 'border-[#C9A84C] text-[#C9A84C] hover:bg-[#FBF5E6]'
                   }`}
-                 >
-                  ⭐ {forceRare ? 'Figurinha rara ativada' : 'Ver figurinha rara (teste)'}
-                </button>
+              >
+                ⭐ {forceRare ? locale.toasts.rareStamp : 'Test rare sticker'}
+              </button>
             </div>
 
             {/* Form */}

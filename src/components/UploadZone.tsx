@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect, useCallback, type DragEvent, type ChangeEvent } from 'react'
 import { Camera, UploadCloud, CheckCircle2, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
+import { useLocale } from '@/i18n'
 
 interface UploadZoneProps {
   onFileSelect: (file: File) => void
@@ -10,20 +11,21 @@ interface UploadZoneProps {
 const MAX_SIZE_BYTES = 5 * 1024 * 1024 // 5 MB
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png']
 
-function validateFile(file: File): string | null {
-  if (!ACCEPTED_TYPES.includes(file.type)) {
-    return 'Formato não suportado. Use JPG ou PNG.'
-  }
-  if (file.size > MAX_SIZE_BYTES) {
-    return 'Arquivo muito grande. Use uma foto de até 5MB.'
-  }
-  return null
-}
-
 export function UploadZone({ onFileSelect, selectedFile }: UploadZoneProps) {
+  const { locale } = useLocale()
   const inputRef = useRef<HTMLInputElement>(null)
   const [isDragOver, setIsDragOver] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+
+  function validateFile(file: File): string | null {
+    if (!ACCEPTED_TYPES.includes(file.type)) {
+      return locale.uploadZone.errorInvalidFormat
+    }
+    if (file.size > MAX_SIZE_BYTES) {
+      return locale.uploadZone.errorTooBig
+    }
+    return null
+  }
 
   // Generate preview URL and revoke on cleanup
   useEffect(() => {
@@ -45,7 +47,7 @@ export function UploadZone({ onFileSelect, selectedFile }: UploadZoneProps) {
       }
       onFileSelect(file)
     },
-    [onFileSelect],
+    [onFileSelect, locale], // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
@@ -91,7 +93,7 @@ export function UploadZone({ onFileSelect, selectedFile }: UploadZoneProps) {
           <div className="overflow-hidden rounded-xl" style={{ width: 120, height: 120 }}>
             <img
               src={previewUrl}
-              alt="Preview da foto selecionada"
+              alt={locale.uploadZone.previewAlt}
               className="h-full w-full object-cover"
             />
           </div>
@@ -121,7 +123,7 @@ export function UploadZone({ onFileSelect, selectedFile }: UploadZoneProps) {
           style={{ color: '#3D9A52' }}
         >
           <RefreshCw className="h-3.5 w-3.5" />
-          Trocar foto
+          {locale.uploadZone.changePhoto}
         </button>
 
         <input
@@ -130,7 +132,7 @@ export function UploadZone({ onFileSelect, selectedFile }: UploadZoneProps) {
           accept="image/jpeg,image/png"
           className="hidden"
           onChange={handleChange}
-          aria-label="Selecionar foto"
+          aria-label={locale.uploadZone.changePhoto}
         />
       </div>
     )
@@ -141,7 +143,7 @@ export function UploadZone({ onFileSelect, selectedFile }: UploadZoneProps) {
     <div
       role="button"
       tabIndex={0}
-      aria-label="Área de upload de foto. Clique ou arraste uma imagem."
+      aria-label={locale.uploadZone.dragHere}
       onClick={handleClick}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') handleClick()
@@ -188,11 +190,11 @@ export function UploadZone({ onFileSelect, selectedFile }: UploadZoneProps) {
             color: isDragOver ? '#92400E' : '#1A5C2A',
           }}
         >
-          {isDragOver ? 'Solte a foto aqui' : 'Arraste sua foto aqui'}
+          {isDragOver ? locale.uploadZone.dropHere : locale.uploadZone.dragHere}
         </p>
         {!isDragOver && (
           <p className="text-sm" style={{ color: '#374151' }}>
-            ou clique para selecionar
+            {locale.uploadZone.clickToSelect}
           </p>
         )}
       </div>
@@ -203,7 +205,7 @@ export function UploadZone({ onFileSelect, selectedFile }: UploadZoneProps) {
           className="rounded-full px-3 py-1 text-xs font-medium"
           style={{ backgroundColor: '#DCFCE7', color: '#166534' }}
         >
-          JPG ou PNG · até 5MB
+          {locale.uploadZone.formatHint}
         </span>
       )}
 
@@ -213,7 +215,7 @@ export function UploadZone({ onFileSelect, selectedFile }: UploadZoneProps) {
         accept="image/jpeg,image/png"
         className="hidden"
         onChange={handleChange}
-        aria-label="Selecionar foto"
+        aria-label={locale.uploadZone.dragHere}
       />
     </div>
   )

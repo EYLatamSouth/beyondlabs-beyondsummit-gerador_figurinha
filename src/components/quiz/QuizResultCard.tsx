@@ -1,6 +1,7 @@
 import type { QuizResultData } from '@/types/quiz'
 import { Trophy } from 'lucide-react'
 import { UploadZone } from '@/components/UploadZone'
+import { useLocale } from '@/i18n'
 
 interface QuizResultCardProps {
   result: QuizResultData
@@ -9,6 +10,8 @@ interface QuizResultCardProps {
 }
 
 export function QuizResultCard({ result, onFileSelect, selectedFile }: QuizResultCardProps) {
+  const { locale } = useLocale()
+
   return (
     <div className="w-full max-w-lg mx-auto animate-fade-slide-up">
       {/* Header label */}
@@ -18,7 +21,7 @@ export function QuizResultCard({ result, onFileSelect, selectedFile }: QuizResul
           style={{ backgroundColor: result.colorBg, color: result.color }}
         >
           <Trophy size={12} className="inline-block mr-1" />
-          Seu resultado
+          {locale.quiz.resultBadge}
         </span>
       </div>
 
@@ -58,7 +61,7 @@ export function QuizResultCard({ result, onFileSelect, selectedFile }: QuizResul
           <span className="shrink-0 text-base">⚡</span>
           <div>
             <span className="font-body text-xs font-bold uppercase tracking-wider text-[#6B7280]">
-              Superpoder:{' '}
+              {locale.quiz.superpowerLabel}{' '}
             </span>
             <span
               className="font-body text-sm font-semibold"
@@ -74,15 +77,15 @@ export function QuizResultCard({ result, onFileSelect, selectedFile }: QuizResul
       <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm p-5">
         <div className="text-center mb-4">
           <p className="font-display font-bold text-lg text-[#111111] uppercase tracking-wide">
-            Agora crie sua figurinha!
+            {locale.quiz.createStampTitle}
           </p>
           <p className="font-body text-sm text-[#6B7280] mt-1">
-            Envie uma foto para gerar sua figurinha exclusiva do evento
+            {locale.quiz.createStampSubtitle}
           </p>
         </div>
         <UploadZone onFileSelect={onFileSelect} selectedFile={selectedFile} />
         <p className="mt-3 text-center text-xs font-body text-[#9CA3AF]">
-          Use uma foto com fundo neutro e rosto centralizado para melhor resultado
+          {locale.quiz.uploadPhotoHint}
         </p>
       </div>
     </div>

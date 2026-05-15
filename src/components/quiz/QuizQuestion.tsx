@@ -1,4 +1,5 @@
 import type { QuizQuestion as QuizQuestionType, QuizLetter } from '@/types/quiz'
+import { useLocale } from '@/i18n'
 
 interface QuizQuestionProps {
   question: QuizQuestionType
@@ -7,6 +8,7 @@ interface QuizQuestionProps {
 }
 
 export function QuizQuestion({ question, totalQuestions, onAnswer }: QuizQuestionProps) {
+  const { locale } = useLocale()
   const isTiebreaker = question.id > totalQuestions
 
   return (
@@ -16,7 +18,7 @@ export function QuizQuestion({ question, totalQuestions, onAnswer }: QuizQuestio
         <div className="mb-6">
           <div className="flex justify-between items-center mb-2">
             <span className="text-xs font-semibold font-body uppercase tracking-wider text-[#6B7280]">
-              Pergunta {question.id} de {totalQuestions}
+              {locale.quiz.progressLabel(question.id, totalQuestions)}
             </span>
             <span className="text-xs font-semibold font-body text-[#1A5C2A]">
               {Math.round((question.id / totalQuestions) * 100)}%
